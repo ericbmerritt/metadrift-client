@@ -1,0 +1,80 @@
+name:                metadrift-client
+version:             0.1.0.0
+synopsis:            CLI for the metadrift client
+description:         Please see README.md
+homepage:            https://github.com/ericbmerritt/metadrift#readme
+license:             AllRightsReserved
+license-file:        LICENSE
+author:              Eric Merritt
+maintainer:          eric@merritt.tech
+copyright:           talendant
+category:            CLI
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  ghc-options:         -Wall -Werror
+  exposed-modules:     Metadrift.Resources.User,
+                       Metadrift.Resources.Card,
+                       Metadrift.Service
+  other-modules:       Metadrift.Internal.Resources.User,
+                       Metadrift.Internal.Resources.Card,
+                       Metadrift.Internal.Resources.Support,
+                       Metadrift.Internal.Utils,
+                       Metadrift.Internal.Service
+
+  build-depends:       base >= 4.7 && < 5
+                       , wreq
+                       , aeson
+                       , text
+                       , aeson-diff
+                       , optparse-applicative
+                       , optparse-generic
+                       , split
+                       , bytestring
+                       , http-conduit
+                       , http-types
+                       , yaml
+                       , data-lens
+                       , data-lens-template
+                       , containers
+                       , MissingH
+  default-language:    Haskell2010
+
+executable metad
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , metadrift-client
+                     , text
+                     , hindent
+                     , yaml
+                     , filepath
+  default-language:    Haskell2010
+
+test-suite doctests
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             DocTest.hs
+  build-depends:       base
+                     , doctest
+                     , hlint
+                     , metadrift-client
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+test-suite linter
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             HLinter.hs
+  build-depends:       base
+                     , hlint
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/ericbmerritt/metadrift
