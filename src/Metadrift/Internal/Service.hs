@@ -48,6 +48,7 @@ data Card =
          , body :: T.Text
          , estimates :: [Estimate]
          , workflow :: Workflow
+         , tags :: [T.Text]
          }
   deriving (Generic)
 
@@ -109,6 +110,19 @@ get :: FromJSON a
 get config name objId = do
   req' <- HTTP.parseRequest baseUrl
   let req = HTTP.setRequestMethod "GET"
+              (HTTP.setRequestHeaders (createHeaders config)
+                 (HTTP.setRequestPath (createPath config (Item (name, objId)))
+                    req'))
+  HTTP.httpJSON req
+
+delete :: FromJSON a
+       => Config
+       -> T.Text
+       -> T.Text
+       -> IO (HTTP.Response a)
+delete config name objId = do
+  req' <- HTTP.parseRequest baseUrl
+  let req = HTTP.setRequestMethod "DELETE"
               (HTTP.setRequestHeaders (createHeaders config)
                  (HTTP.setRequestPath (createPath config (Item (name, objId)))
                     req'))
@@ -185,3 +199,8 @@ createCard :: Config
            -> IO (HTTP.Response Card)
 createCard config =
   create config "cards"
+
+deleteCard :: Config
+           -> T.Text
+           -> IO (HTTP.Response Card)
+deleteCard config = delete config "cards"
