@@ -3,8 +3,8 @@
 
 module Metadrift.Internal.Resources.Card where
 
-import           Control.Exception (Exception, throw)
 import qualified Data.Lens.Common as Lens
+import           Control.Exception (Exception, throw)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe.Utils (forceMaybe)
 import qualified Data.Text as T
@@ -19,7 +19,13 @@ import           Prelude hiding (min, max)
 import           System.Exit (ExitCode(..))
 
 data Command = Get { gname :: T.Text }
-             | Create { title :: T.Text, body :: T.Text, workflow :: T.Text }
+             |
+               Create
+                 { title :: T.Text
+                 , body :: T.Text
+                 , workflow :: T.Text
+                 , tags :: [T.Text]
+                 }
              |
                Update
                  { name :: T.Text
@@ -35,6 +41,7 @@ data Command = Get { gname :: T.Text }
                  , max :: Int
                  }
              | List
+             | Delete { dname :: T.Text }
   deriving (Generic, Show)
 
 instance ParseRecord Command
@@ -60,16 +67,33 @@ setMap = Map.fromList
            , ("workflow", \val obj ->
                             Lens.setL Service._workflow (stringToWorkflow val)
                               obj)
+           , ("tags", \val -> Lens.setL Service._tags [val])
            ]
 
+addMap :: Support.UpdateMap Service.Card
+addMap = Map.fromList
+           [ ("title", Lens.setL Service._title)
+           , ("body", Lens.setL Service._body)
+           , ("workflow", \val obj ->
+                            Lens.setL Service._workflow (stringToWorkflow val)
+                              obj)
+           , ("tags", \val obj -> let newVal = val : Lens.getL Service._tags obj
+                                  in Lens.setL Service._tags newVal obj)
+           ]
+
+actionMap :: Map.Map T.Text (Support.UpdateMap Service.Card)
+actionMap = Map.fromList [("add", addMap), ("set", setMap)]
+
 update :: T.Text -> T.Text -> T.Text -> Service.Config -> Service.Card -> IO ExitCode
-update "set" fieldName value config card =
-  Support.setField setMap card fieldName value >>= \case
-    Just newCard -> Service.patchCard config card newCard >>= Support.printBody
-    Nothing      -> return $ ExitFailure 100
-update _ _fieldName _value _config _card = do
-  putStrLn "Invalid action specified set"
-  return $ ExitFailure 99
+update action fieldName value config card =
+  case Map.lookup action actionMap of
+    Just aMap ->
+      Support.setField aMap card fieldName value >>= \case
+        Just newUser -> Service.patchCard config card newUser >>= Support.printBody
+        Nothing      -> return $ ExitFailure 100
+    Nothing -> do
+      putStrLn ("Invalid action specified" ++ T.unpack action)
+      return $ ExitFailure 99
 
 doCommand :: Service.Config -> Command -> IO ExitCode
 doCommand config AddEstimate { name, uid, min, max } = do
@@ -92,9 +116,11 @@ doCommand config Update { name, op, fieldName, value } = do
   result <- Service.getCard config name
   let card = HTTP.getResponseBody result
   update op fieldName value config card
+doCommand config Delete { dname } =
+  Service.deleteCard config dname >>= Support.printBody
 doCommand config Get { gname } =
   Service.getCard config gname >>= Support.printBody
-doCommand config Create { title, body, workflow } =
+doCommand config Create { title, body, workflow, tags } =
   Service.createCard config
     Service.Card
       { Service.name = Nothing
@@ -102,6 +128,7 @@ doCommand config Create { title, body, workflow } =
       , Service.body
       , Service.workflow = stringToWorkflow workflow
       , Service.estimates = []
+      , Service.tags
       } >>= Support.printBody
 
 main :: Service.Config -> [T.Text] -> IO ExitCode
