@@ -23,7 +23,10 @@ library
                        Metadrift.Internal.Resources.Card,
                        Metadrift.Internal.Resources.Support,
                        Metadrift.Internal.Utils,
-                       Metadrift.Internal.Service
+                       Metadrift.Internal.Service,
+                       Metadrift.Internal.Service.Card,
+                       Metadrift.Internal.Service.User,
+                       Metadrift.Internal.Service.Simulate
 
   build-depends:       base >= 4.7 && < 5
                        , wreq

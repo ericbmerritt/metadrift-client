@@ -8,6 +8,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Service as Service
+import qualified Metadrift.Internal.Service.User as Service.User
 import qualified Metadrift.Internal.Resources.Support as Support
 import qualified Metadrift.Internal.Utils as Utils
 import qualified Network.HTTP.Simple as HTTP
@@ -34,25 +35,25 @@ data Command = Get { gid :: T.Text }
 
 instance ParseRecord Command
 
-setMap :: Support.UpdateMap Service.User
+setMap :: Support.UpdateMap Service.User.T
 setMap = Map.fromList
-           [ ("preferredName", Lens.setL Service._preferredName)
-           , ("email", Lens.setL Service._email)
-           , ("teams", \val -> Lens.setL Service._teams [val])
+           [ ("preferredName", Lens.setL Service.User._preferredName)
+           , ("email", Lens.setL Service.User._email)
+           , ("teams", \val -> Lens.setL Service.User._teams [val])
            ]
 
-addMap :: Support.UpdateMap Service.User
+addMap :: Support.UpdateMap Service.User.T
 addMap = Map.fromList
-           [ ("preferredName", Lens.setL Service._preferredName)
-           , ("email", Lens.setL Service._email)
-           , ("teams", \val obj -> let newVal = val : Lens.getL Service._teams obj
-                                   in Lens.setL Service._teams newVal obj)
+           [ ("preferredName", Lens.setL Service.User._preferredName)
+           , ("email", Lens.setL Service.User._email)
+           , ("teams", \val obj -> let newVal = val : Lens.getL Service.User._teams obj
+                                   in Lens.setL Service.User._teams newVal obj)
            ]
 
-actionMap :: Map.Map T.Text (Support.UpdateMap Service.User)
+actionMap :: Map.Map T.Text (Support.UpdateMap Service.User.T)
 actionMap = Map.fromList [("add", addMap), ("set", setMap)]
 
-update :: T.Text -> T.Text -> T.Text -> Service.Config -> Service.User -> IO ExitCode
+update :: T.Text -> T.Text -> T.Text -> Service.Config -> Service.User.T -> IO ExitCode
 update action fieldName value config user =
   case Map.lookup action actionMap of
     Just aMap ->
@@ -66,7 +67,7 @@ update action fieldName value config user =
 doCommand :: Service.Config -> Command -> IO ExitCode
 doCommand config List = do
   users <- HTTP.getResponseBody <$> Service.getUsers config
-  Support.printBodies Service.username users
+  Support.printBodies Service.User.username users
 doCommand config Update { uid, op, fieldName, value } = do
   result <- Service.getUser config uid
   let user = HTTP.getResponseBody result
@@ -75,11 +76,11 @@ doCommand config Get { gid } =
   Service.getUser config gid >>= Support.printBody
 doCommand config Create { username, preferredName, email, teams } =
   Service.createUser config
-    Service.User
-      { Service.username
-      , Service.preferredName
-      , Service.email
-      , Service.teams
+    Service.User.T
+      { Service.User.username
+      , Service.User.preferredName
+      , Service.User.email
+      , Service.User.teams
       } >>= Support.printBody
 
 main :: Service.Config -> [T.Text] -> IO ExitCode
