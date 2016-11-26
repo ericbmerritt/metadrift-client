@@ -4,14 +4,13 @@
 module Metadrift.Internal.Resources.Card where
 
 import qualified Data.Lens.Common as Lens
-import           Control.Exception (Exception, throw)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe.Utils (forceMaybe)
 import qualified Data.Text as T
-import           Data.Typeable (Typeable)
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Resources.Support as Support
 import qualified Metadrift.Internal.Service as Service
+import qualified Metadrift.Internal.Service.Card as Service.Card
 import qualified Metadrift.Internal.Utils as Utils
 import qualified Network.HTTP.Simple as HTTP
 import           Options.Generic (ParseRecord)
@@ -46,45 +45,35 @@ data Command = Get { gname :: T.Text }
 
 instance ParseRecord Command
 
-data CommandException = InvalidWorkflowException T.Text
-  deriving (Show, Typeable)
-
-instance Exception CommandException
-
-stringToWorkflow :: T.Text -> Service.Workflow
-stringToWorkflow "backlog" = Service.Backlog
-stringToWorkflow "codereview" = Service.CardReview
-stringToWorkflow "todo" = Service.ToDo
-stringToWorkflow "doing" = Service.Doing
-stringToWorkflow "done" = Service.Done
-stringToWorkflow "archive" = Service.Archive
-stringToWorkflow wf = throw $ InvalidWorkflowException wf
-
-setMap :: Support.UpdateMap Service.Card
+setMap :: Support.UpdateMap Service.Card.T
 setMap = Map.fromList
-           [ ("title", Lens.setL Service._title)
-           , ("body", Lens.setL Service._body)
+           [ ("title", Lens.setL Service.Card._title)
+           , ("body", Lens.setL Service.Card._body)
            , ("workflow", \val obj ->
-                            Lens.setL Service._workflow (stringToWorkflow val)
+                            Lens.setL
+                              Service.Card._workflow
+                              (Service.Card.stringToWorkflow val)
                               obj)
-           , ("tags", \val -> Lens.setL Service._tags [val])
+           , ("tags", \val -> Lens.setL Service.Card._tags [val])
            ]
 
-addMap :: Support.UpdateMap Service.Card
+addMap :: Support.UpdateMap Service.Card.T
 addMap = Map.fromList
-           [ ("title", Lens.setL Service._title)
-           , ("body", Lens.setL Service._body)
+           [ ("title", Lens.setL Service.Card._title)
+           , ("body", Lens.setL Service.Card._body)
            , ("workflow", \val obj ->
-                            Lens.setL Service._workflow (stringToWorkflow val)
+                            Lens.setL
+                              Service.Card._workflow
+                              (Service.Card.stringToWorkflow val)
                               obj)
-           , ("tags", \val obj -> let newVal = val : Lens.getL Service._tags obj
-                                  in Lens.setL Service._tags newVal obj)
+           , ("tags", \val obj -> let newVal = val : Lens.getL Service.Card._tags obj
+                                  in Lens.setL Service.Card._tags newVal obj)
            ]
 
-actionMap :: Map.Map T.Text (Support.UpdateMap Service.Card)
+actionMap :: Map.Map T.Text (Support.UpdateMap Service.Card.T)
 actionMap = Map.fromList [("add", addMap), ("set", setMap)]
 
-update :: T.Text -> T.Text -> T.Text -> Service.Config -> Service.Card -> IO ExitCode
+update :: T.Text -> T.Text -> T.Text -> Service.Config -> Service.Card.T -> IO ExitCode
 update action fieldName value config card =
   case Map.lookup action actionMap of
     Just aMap ->
@@ -98,20 +87,21 @@ update action fieldName value config card =
 doCommand :: Service.Config -> Command -> IO ExitCode
 doCommand config AddEstimate { name, uid, min, max } = do
   result <- Service.getCard config name
-  let card@Service.Card { Service.estimates } = HTTP.getResponseBody result
+  let card@Service.Card.T { Service.Card.estimates } = HTTP.getResponseBody
+                                                         result
   let newCard = card
-        { Service.estimates = Service.Estimate
-                                { Service.userId = uid
-                                , Service.estimate = Service.Range
-                                  { Service.min
-                                  , Service.max
-                                  }
-                                } : estimates
+        { Service.Card.estimates = Service.Card.Estimate
+                                     { Service.Card.username = uid
+                                     , Service.Card.range = Service.Card.Range
+                                       { Service.Card.min
+                                       , Service.Card.max
+                                       }
+                                     } : estimates
         }
   Service.patchCard config card newCard >>= Support.printBody
 doCommand config List = do
   cards <- HTTP.getResponseBody <$> Service.getCards config
-  Support.printBodies (forceMaybe . Service.name) cards
+  Support.printBodies (forceMaybe . Service.Card.name) cards
 doCommand config Update { name, op, fieldName, value } = do
   result <- Service.getCard config name
   let card = HTTP.getResponseBody result
@@ -122,13 +112,13 @@ doCommand config Get { gname } =
   Service.getCard config gname >>= Support.printBody
 doCommand config Create { title, body, workflow, tags } =
   Service.createCard config
-    Service.Card
-      { Service.name = Nothing
-      , Service.title
-      , Service.body
-      , Service.workflow = stringToWorkflow workflow
-      , Service.estimates = []
-      , Service.tags
+    Service.Card.T
+      { Service.Card.name = Nothing
+      , Service.Card.title
+      , Service.Card.body
+      , Service.Card.workflow = Service.Card.stringToWorkflow workflow
+      , Service.Card.estimates = []
+      , Service.Card.tags
       } >>= Support.printBody
 
 main :: Service.Config -> [T.Text] -> IO ExitCode
