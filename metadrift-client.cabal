@@ -18,9 +18,11 @@ library
   ghc-options:         -Wall -Werror
   exposed-modules:     Metadrift.Resources.User,
                        Metadrift.Resources.Card,
+                       Metadrift.Resources.Simulate,
                        Metadrift.Service
   other-modules:       Metadrift.Internal.Resources.User,
                        Metadrift.Internal.Resources.Card,
+                       Metadrift.Internal.Resources.Simulate,
                        Metadrift.Internal.Resources.Support,
                        Metadrift.Internal.Utils,
                        Metadrift.Internal.Service,
@@ -44,6 +46,7 @@ library
                        , data-lens-template
                        , containers
                        , MissingH
+                       , time
   default-language:    Haskell2010
 
 executable metad

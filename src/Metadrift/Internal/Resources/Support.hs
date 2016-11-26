@@ -4,7 +4,6 @@
 module Metadrift.Internal.Resources.Support where
 
 import qualified Data.Aeson as Aeson
-import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import qualified Metadrift.Internal.Utils as Utils
@@ -19,15 +18,10 @@ printBody result = do
   Utils.prettyPrint user
   return ExitSuccess
 
-printBodies :: Aeson.ToJSON a => (a -> T.Text) -> [a] -> IO ExitCode
-printBodies _ [] =
+printBodies :: Aeson.ToJSON a => [a] -> IO ExitCode
+printBodies objs = do
+  Utils.prettyPrint objs
   return ExitSuccess
-printBodies getter (obj:t) =
-  let un = getter obj
-  in do
-    putStrLn (T.unpack un ++ List.replicate (80 - T.length un) '-')
-    Utils.prettyPrint obj
-    printBodies getter t
 
 setField :: UpdateMap a -> a -> T.Text -> T.Text -> IO (Maybe a)
 setField updateMap obj fieldName value =

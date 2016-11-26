@@ -159,3 +159,13 @@ deleteCard :: Config
            -> IO (HTTP.Response Card.T)
 deleteCard config = delete config "cards"
 
+simulate :: Config
+         -> Simulate.T
+         -> IO (HTTP.Response Simulate.Result)
+simulate config obj = do
+  req' <- HTTP.parseRequest baseUrl
+  let req = HTTP.setRequestMethod "POST"
+              (HTTP.setRequestHeaders (createHeaders config)
+                 (HTTP.setRequestPath (createPath config (Col "simulate"))
+                    (HTTP.setRequestBodyJSON obj req')))
+  HTTP.httpJSON req

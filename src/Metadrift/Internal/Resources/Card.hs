@@ -3,9 +3,10 @@
 
 module Metadrift.Internal.Resources.Card where
 
+import qualified Data.Either.Utils as EitherUtils
+import qualified Data.Text.Read as Read
 import qualified Data.Lens.Common as Lens
 import qualified Data.Map.Strict as Map
-import           Data.Maybe.Utils (forceMaybe)
 import qualified Data.Text as T
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Resources.Support as Support
@@ -23,6 +24,7 @@ data Command = Get { gname :: T.Text }
                  { title :: T.Text
                  , body :: T.Text
                  , workflow :: T.Text
+                 , priority :: Double
                  , tags :: [T.Text]
                  }
              |
@@ -36,8 +38,8 @@ data Command = Get { gname :: T.Text }
                AddEstimate
                  { name :: T.Text
                  , uid :: T.Text
-                 , min :: Int
-                 , max :: Int
+                 , p5 :: Int
+                 , p95 :: Int
                  }
              | List
              | Delete { dname :: T.Text }
@@ -49,6 +51,10 @@ setMap :: Support.UpdateMap Service.Card.T
 setMap = Map.fromList
            [ ("title", Lens.setL Service.Card._title)
            , ("body", Lens.setL Service.Card._body)
+           , ("priority", Lens.setL Service.Card._priority .
+                          fst .
+                          EitherUtils.forceEither .
+                          Read.rational)
            , ("workflow", \val obj ->
                             Lens.setL
                               Service.Card._workflow
@@ -61,6 +67,10 @@ addMap :: Support.UpdateMap Service.Card.T
 addMap = Map.fromList
            [ ("title", Lens.setL Service.Card._title)
            , ("body", Lens.setL Service.Card._body)
+           , ("priority", Lens.setL Service.Card._priority .
+                          fst .
+                          EitherUtils.forceEither .
+                          Read.rational)
            , ("workflow", \val obj ->
                             Lens.setL
                               Service.Card._workflow
@@ -85,7 +95,7 @@ update action fieldName value config card =
       return $ ExitFailure 99
 
 doCommand :: Service.Config -> Command -> IO ExitCode
-doCommand config AddEstimate { name, uid, min, max } = do
+doCommand config AddEstimate { name, uid, p5, p95 } = do
   result <- Service.getCard config name
   let card@Service.Card.T { Service.Card.estimates } = HTTP.getResponseBody
                                                          result
@@ -93,15 +103,15 @@ doCommand config AddEstimate { name, uid, min, max } = do
         { Service.Card.estimates = Service.Card.Estimate
                                      { Service.Card.username = uid
                                      , Service.Card.range = Service.Card.Range
-                                       { Service.Card.min
-                                       , Service.Card.max
+                                       { Service.Card.p5
+                                       , Service.Card.p95
                                        }
                                      } : estimates
         }
   Service.patchCard config card newCard >>= Support.printBody
 doCommand config List = do
   cards <- HTTP.getResponseBody <$> Service.getCards config
-  Support.printBodies (forceMaybe . Service.Card.name) cards
+  Support.printBodies cards
 doCommand config Update { name, op, fieldName, value } = do
   result <- Service.getCard config name
   let card = HTTP.getResponseBody result
@@ -110,7 +120,7 @@ doCommand config Delete { dname } =
   Service.deleteCard config dname >>= Support.printBody
 doCommand config Get { gname } =
   Service.getCard config gname >>= Support.printBody
-doCommand config Create { title, body, workflow, tags } =
+doCommand config Create { title, body, workflow, priority, tags } =
   Service.createCard config
     Service.Card.T
       { Service.Card.name = Nothing
@@ -118,6 +128,7 @@ doCommand config Create { title, body, workflow, tags } =
       , Service.Card.body
       , Service.Card.workflow = Service.Card.stringToWorkflow workflow
       , Service.Card.estimates = []
+      , Service.Card.priority
       , Service.Card.tags
       } >>= Support.printBody
 

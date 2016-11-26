@@ -11,7 +11,7 @@ import qualified Data.Text as T
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Utils as Utils
 
-data Range = Range { min :: Int, max :: Int }
+data Range = Range { p5 :: Int, p95 :: Int }
   deriving Generic
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''Range)
@@ -38,6 +38,7 @@ data T =
          , body :: T.Text
          , estimates :: [Estimate]
          , workflow :: Workflow
+         , priority :: Double
          , tags :: [T.Text]
          }
   deriving (Generic)

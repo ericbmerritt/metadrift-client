@@ -67,7 +67,7 @@ update action fieldName value config user =
 doCommand :: Service.Config -> Command -> IO ExitCode
 doCommand config List = do
   users <- HTTP.getResponseBody <$> Service.getUsers config
-  Support.printBodies Service.User.username users
+  Support.printBodies users
 doCommand config Update { uid, op, fieldName, value } = do
   result <- Service.getUser config uid
   let user = HTTP.getResponseBody result
