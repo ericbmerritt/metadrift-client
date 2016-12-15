@@ -38,8 +38,8 @@ data Command = Get { gname :: T.Text }
                AddEstimate
                  { name :: T.Text
                  , uid :: T.Text
-                 , p5 :: Int
-                 , p95 :: Int
+                 , p5 :: Double
+                 , p95 :: Double
                  }
              | List
              | Delete { dname :: T.Text }

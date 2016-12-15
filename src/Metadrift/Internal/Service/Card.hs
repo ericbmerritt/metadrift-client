@@ -11,7 +11,7 @@ import qualified Data.Text as T
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Utils as Utils
 
-data Range = Range { p5 :: Int, p95 :: Int }
+data Range = Range { p5 :: Double, p95 :: Double }
   deriving Generic
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''Range)
