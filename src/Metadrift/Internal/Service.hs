@@ -17,6 +17,7 @@ import qualified Network.HTTP.Types.Header as Header
 import qualified Metadrift.Internal.Service.Card as Card
 import qualified Metadrift.Internal.Service.User as User
 import qualified Metadrift.Internal.Service.Simulate as Simulate
+import qualified Metadrift.Internal.Service.Secret as Secret
 
 data Config = Config { token :: T.Text, namespace :: T.Text }
   deriving (Generic, Show)
@@ -169,3 +170,14 @@ simulate config obj = do
                  (HTTP.setRequestPath (createPath config (Col "simulate"))
                     (HTTP.setRequestBodyJSON obj req')))
   HTTP.httpJSON req
+
+createSecret :: Config
+             -> Secret.T
+             -> IO (HTTP.Response Secret.T)
+createSecret config =
+  create config "secrets"
+
+deleteSecret :: Config
+             -> T.Text
+             -> IO (HTTP.Response Secret.T)
+deleteSecret config = delete config "secrets"
