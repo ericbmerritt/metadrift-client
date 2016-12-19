@@ -4,11 +4,12 @@
 module Metadrift.Internal.Resources.User where
 
 import qualified Data.Lens.Common as Lens
-import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Service as Service
+import qualified Metadrift.Internal.Service.User as Service.User
+import qualified Metadrift.Internal.Resources.Support as Support
 import qualified Metadrift.Internal.Utils as Utils
 import qualified Network.HTTP.Simple as HTTP
 import           Options.Generic (ParseRecord)
@@ -34,59 +35,30 @@ data Command = Get { gid :: T.Text }
 
 instance ParseRecord Command
 
-type UpdateMap = Map.Map T.Text (T.Text -> Service.User -> Service.User)
-
-setMap :: UpdateMap
+setMap :: Support.UpdateMap Service.User.T
 setMap = Map.fromList
-           [ ("preferredName", Lens.setL Service._preferredName)
-           , ("email", Lens.setL Service._email)
-           , ("teams", \val -> Lens.setL Service._teams [val])
+           [ ("preferredName", Lens.setL Service.User._preferredName)
+           , ("email", Lens.setL Service.User._email)
+           , ("teams", \val -> Lens.setL Service.User._teams [val])
            ]
 
-addMap :: UpdateMap
+addMap :: Support.UpdateMap Service.User.T
 addMap = Map.fromList
-           [ ("preferredName", Lens.setL Service._preferredName)
-           , ("email", Lens.setL Service._email)
-           , ("teams", \val obj -> let newVal = val : Lens.getL Service._teams obj
-                                   in Lens.setL Service._teams newVal obj)
+           [ ("preferredName", Lens.setL Service.User._preferredName)
+           , ("email", Lens.setL Service.User._email)
+           , ("teams", \val obj -> let newVal = val : Lens.getL Service.User._teams obj
+                                   in Lens.setL Service.User._teams newVal obj)
            ]
 
-actionMap :: Map.Map T.Text UpdateMap
+actionMap :: Map.Map T.Text (Support.UpdateMap Service.User.T)
 actionMap = Map.fromList [("add", addMap), ("set", setMap)]
 
-printBody :: HTTP.Response Service.User -> IO ExitCode
-printBody result = do
-  let user = HTTP.getResponseBody result
-  Utils.prettyPrint user
-  return ExitSuccess
-
-printBodies :: [Service.User] -> IO ExitCode
-printBodies [] =
-  return ExitSuccess
-printBodies (user:t) =
-  let un = Service.username user
-  in do
-    putStrLn (T.unpack un ++ List.replicate (80 - T.length un) '-')
-    Utils.prettyPrint user
-    printBodies t
-
-setField :: UpdateMap -> Service.User -> T.Text -> T.Text -> IO (Maybe Service.User)
-setField _ _user "username" _value = do
-  putStrLn "username is not mutable"
-  return Nothing
-setField updateMap user fieldName value =
-  case Map.lookup fieldName updateMap of
-    Just setter -> return $ Just (setter value user)
-    Nothing -> do
-      putStrLn ("Unrecognized field name: " ++ T.unpack fieldName)
-      return Nothing
-
-update :: T.Text -> T.Text -> T.Text -> Service.Config -> Service.User -> IO ExitCode
+update :: T.Text -> T.Text -> T.Text -> Service.Config -> Service.User.T -> IO ExitCode
 update action fieldName value config user =
   case Map.lookup action actionMap of
     Just aMap ->
-      setField aMap user fieldName value >>= \case
-        Just newUser -> Service.patchUser config user newUser >>= printBody
+      Support.setField aMap user fieldName value >>= \case
+        Just newUser -> Service.patchUser config user newUser >>= Support.printBody
         Nothing      -> return $ ExitFailure 100
     Nothing -> do
       putStrLn ("Invalid action specified" ++ T.unpack action)
@@ -95,21 +67,21 @@ update action fieldName value config user =
 doCommand :: Service.Config -> Command -> IO ExitCode
 doCommand config List = do
   users <- HTTP.getResponseBody <$> Service.getUsers config
-  printBodies users
+  Support.printBodies users
 doCommand config Update { uid, op, fieldName, value } = do
   result <- Service.getUser config uid
   let user = HTTP.getResponseBody result
   update op fieldName value config user
 doCommand config Get { gid } =
-  Service.getUser config gid >>= printBody
+  Service.getUser config gid >>= Support.printBody
 doCommand config Create { username, preferredName, email, teams } =
   Service.createUser config
-    Service.User
-      { Service.username
-      , Service.preferredName
-      , Service.email
-      , Service.teams
-      } >>= printBody
+    Service.User.T
+      { Service.User.username
+      , Service.User.preferredName
+      , Service.User.email
+      , Service.User.teams
+      } >>= Support.printBody
 
 main :: Service.Config -> [T.Text] -> IO ExitCode
 main cfg = Utils.runCommandWithArgs "user" "Manage users in the system" $

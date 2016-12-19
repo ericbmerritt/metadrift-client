@@ -7,7 +7,6 @@ import           Data.Aeson (ToJSON, FromJSON, toJSON)
 import qualified Data.Aeson.Diff as Diff
 import qualified Data.Aeson.TH as Aeson
 import qualified Data.ByteString as B
-import           Data.Lens.Template (nameMakeLens)
 import           Data.Maybe.Utils (forceMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as Encoding
@@ -15,58 +14,14 @@ import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Utils as Utils
 import qualified Network.HTTP.Simple as HTTP
 import qualified Network.HTTP.Types.Header as Header
+import qualified Metadrift.Internal.Service.Card as Card
+import qualified Metadrift.Internal.Service.User as User
+import qualified Metadrift.Internal.Service.Simulate as Simulate
 
 data Config = Config { token :: T.Text, namespace :: T.Text }
   deriving (Generic, Show)
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''Config)
-
-data Range = Range { min :: Int, max :: Int }
-  deriving Generic
-
-$(Aeson.deriveJSON Utils.defaultAesonOptions ''Range)
-
-data Estimate = Estimate { userId :: T.Text, estimate :: Range }
-  deriving Generic
-
-$(Aeson.deriveJSON Utils.defaultAesonOptions ''Estimate)
-
-data Workflow = Backlog
-              | CardReview
-              | ToDo
-              | Doing
-              | Done
-              | Archive
-  deriving Generic
-
-$(Aeson.deriveJSON Utils.defaultAesonOptions ''Workflow)
-
-data Card =
-       Card
-         { name :: Maybe T.Text
-         , title :: T.Text
-         , body :: T.Text
-         , estimates :: [Estimate]
-         , workflow :: Workflow
-         }
-  deriving (Generic)
-
-$(Aeson.deriveJSON Utils.defaultAesonOptions ''Card)
-
-$(nameMakeLens ''Card (\name -> Just $ "_" ++ name))
-
-data User =
-       User
-         { username :: T.Text
-         , preferredName :: T.Text
-         , email :: T.Text
-         , teams :: [T.Text]
-         }
-  deriving (Generic, Show)
-
-$(Aeson.deriveJSON Utils.defaultAesonOptions ''User)
-
-$(nameMakeLens ''User (\name -> Just $ "_" ++ name))
 
 data Path = Col T.Text
           | Item (T.Text, T.Text)
@@ -114,6 +69,19 @@ get config name objId = do
                     req'))
   HTTP.httpJSON req
 
+delete :: FromJSON a
+       => Config
+       -> T.Text
+       -> T.Text
+       -> IO (HTTP.Response a)
+delete config name objId = do
+  req' <- HTTP.parseRequest baseUrl
+  let req = HTTP.setRequestMethod "DELETE"
+              (HTTP.setRequestHeaders (createHeaders config)
+                 (HTTP.setRequestPath (createPath config (Item (name, objId)))
+                    req'))
+  HTTP.httpJSON req
+
 getAll :: FromJSON a
        => Config
        -> T.Text
@@ -145,43 +113,59 @@ patch config name getId oldObj newObj =
 
 getUser :: Config
         -> T.Text
-        -> IO (HTTP.Response User)
+        -> IO (HTTP.Response User.T)
 getUser config = get config "users"
 
 getUsers :: Config
-         -> IO (HTTP.Response [User])
+         -> IO (HTTP.Response [User.T])
 getUsers config =
   getAll config "users"
 
 patchUser :: Config
-          -> User
-          -> User
-          -> IO (HTTP.Response User)
-patchUser config = patch config "users" username
+          -> User.T
+          -> User.T
+          -> IO (HTTP.Response User.T)
+patchUser config = patch config "users" User.username
 
 createUser :: Config
-           -> User
-           -> IO (HTTP.Response User)
+           -> User.T
+           -> IO (HTTP.Response User.T)
 createUser config = create config "users"
 
 getCard :: Config
         -> T.Text
-        -> IO (HTTP.Response Card)
+        -> IO (HTTP.Response Card.T)
 getCard config = get config "cards"
 
 getCards :: Config
-         -> IO (HTTP.Response [Card])
+         -> IO (HTTP.Response [Card.T])
 getCards config =
   getAll config "cards"
 
 patchCard :: Config
-          -> Card
-          -> Card
-          -> IO (HTTP.Response Card)
-patchCard config = patch config "cards" (forceMaybe . name)
+          -> Card.T
+          -> Card.T
+          -> IO (HTTP.Response Card.T)
+patchCard config = patch config "cards" (forceMaybe . Card.name)
 
 createCard :: Config
-           -> Card
-           -> IO (HTTP.Response Card)
+           -> Card.T
+           -> IO (HTTP.Response Card.T)
 createCard config =
   create config "cards"
+
+deleteCard :: Config
+           -> T.Text
+           -> IO (HTTP.Response Card.T)
+deleteCard config = delete config "cards"
+
+simulate :: Config
+         -> Simulate.T
+         -> IO (HTTP.Response Simulate.Result)
+simulate config obj = do
+  req' <- HTTP.parseRequest baseUrl
+  let req = HTTP.setRequestMethod "POST"
+              (HTTP.setRequestHeaders (createHeaders config)
+                 (HTTP.setRequestPath (createPath config (Col "simulate"))
+                    (HTTP.setRequestBodyJSON obj req')))
+  HTTP.httpJSON req
