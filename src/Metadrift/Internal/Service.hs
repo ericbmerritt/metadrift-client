@@ -3,6 +3,7 @@
 
 module Metadrift.Internal.Service where
 
+import           Debug.Trace
 import           Data.Aeson (ToJSON, FromJSON, toJSON)
 import qualified Data.Aeson.Diff as Diff
 import qualified Data.Aeson.TH as Aeson
@@ -13,13 +14,19 @@ import qualified Data.Text.Encoding as Encoding
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Utils as Utils
 import qualified Network.HTTP.Simple as HTTP
-import qualified Network.HTTP.Types.Header as Header
 import qualified Metadrift.Internal.Service.Card as Card
 import qualified Metadrift.Internal.Service.User as User
 import qualified Metadrift.Internal.Service.Simulate as Simulate
 import qualified Metadrift.Internal.Service.Secret as Secret
+import qualified Metadrift.Internal.HmacAuthClient as HmacAuthClient
 
-data Config = Config { token :: T.Text, namespace :: T.Text }
+data Config =
+       Config
+         { accessKey :: T.Text
+         , secretKey :: T.Text
+         , namespace :: T.Text
+         , baseUrl :: Maybe String
+         }
   deriving (Generic, Show)
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''Config)
@@ -30,19 +37,46 @@ data Path = Col T.Text
 version :: String
 version = "v1"
 
--- baseUrl :: String baseUrl = "https://metadrift.talendant.com/"
-baseUrl :: String
-baseUrl = "http://localhost:3000/"
+getBaseUrl :: Config -> String
+getBaseUrl Config { baseUrl = Just url } = url
+getBaseUrl Config { baseUrl = Nothing } = "https://metadrift.talendant.com/"
+
+authorizeRequest :: Config -> HTTP.Request -> IO HTTP.Request
+authorizeRequest Config { accessKey, secretKey, namespace } =
+  let fullKey = T.concat [namespace, "-", accessKey]
+      _ = traceShow fullKey ()
+  in HmacAuthClient.applyHmacAuth
+       HmacAuthClient.defaultHmacAuthSettings
+       (Encoding.encodeUtf8 fullKey)
+       (Encoding.encodeUtf8 secretKey)
 
 createPath :: Config -> Path -> B.ByteString
 createPath Config { namespace } (Col resourceType) =
-  Encoding.encodeUtf8 $ T.concat [namespace, "/", resourceType]
+  Encoding.encodeUtf8 $ T.concat ["/", namespace, "/", resourceType]
 createPath Config { namespace } (Item (resourceType, itemId)) =
-  Encoding.encodeUtf8 $ T.concat [namespace, "/", resourceType, "/", itemId]
+  Encoding.encodeUtf8 $ T.concat
+                          ["/", namespace, "/", resourceType, "/", itemId]
 
-createHeaders :: Config -> Header.RequestHeaders
-createHeaders Config { token } =
-  [(Header.hAuthorization, B.concat ["bearer ", Encoding.encodeUtf8 token])]
+createRequest' :: ToJSON a
+               => Config
+               -> B.ByteString
+               -> a
+               -> B.ByteString
+               -> IO HTTP.Request
+createRequest' config method obj path = do
+  req <- HTTP.parseRequest $ getBaseUrl config
+  authorizeRequest config
+    (HTTP.setRequestMethod method
+       (HTTP.setRequestPath path (HTTP.setRequestBodyJSON obj req)))
+
+createRequest :: Config
+              -> B.ByteString
+              -> B.ByteString
+              -> IO HTTP.Request
+createRequest config method path = do
+  req <- HTTP.parseRequest $ getBaseUrl config
+  authorizeRequest config
+    (HTTP.setRequestMethod method (HTTP.setRequestPath path req))
 
 create :: (ToJSON a, FromJSON a)
        => Config
@@ -50,11 +84,7 @@ create :: (ToJSON a, FromJSON a)
        -> a
        -> IO (HTTP.Response a)
 create config name obj = do
-  req' <- HTTP.parseRequest baseUrl
-  let req = HTTP.setRequestMethod "POST"
-              (HTTP.setRequestHeaders (createHeaders config)
-                 (HTTP.setRequestPath (createPath config (Col name))
-                    (HTTP.setRequestBodyJSON obj req')))
+  req <- createRequest' config "POST" obj $ createPath config (Col name)
   HTTP.httpJSON req
 
 get :: FromJSON a
@@ -63,11 +93,7 @@ get :: FromJSON a
     -> T.Text
     -> IO (HTTP.Response a)
 get config name objId = do
-  req' <- HTTP.parseRequest baseUrl
-  let req = HTTP.setRequestMethod "GET"
-              (HTTP.setRequestHeaders (createHeaders config)
-                 (HTTP.setRequestPath (createPath config (Item (name, objId)))
-                    req'))
+  req <- createRequest config "GET" $ createPath config (Item (name, objId))
   HTTP.httpJSON req
 
 delete :: FromJSON a
@@ -76,11 +102,7 @@ delete :: FromJSON a
        -> T.Text
        -> IO (HTTP.Response a)
 delete config name objId = do
-  req' <- HTTP.parseRequest baseUrl
-  let req = HTTP.setRequestMethod "DELETE"
-              (HTTP.setRequestHeaders (createHeaders config)
-                 (HTTP.setRequestPath (createPath config (Item (name, objId)))
-                    req'))
+  req <- createRequest config "DELETE" $ createPath config (Item (name, objId))
   HTTP.httpJSON req
 
 getAll :: FromJSON a
@@ -88,10 +110,7 @@ getAll :: FromJSON a
        -> T.Text
        -> IO (HTTP.Response [a])
 getAll config name = do
-  req' <- HTTP.parseRequest baseUrl
-  let req = HTTP.setRequestMethod "GET"
-              (HTTP.setRequestHeaders (createHeaders config)
-                 (HTTP.setRequestPath (createPath config (Col name)) req'))
+  req <- createRequest config "GET" $ createPath config (Col name)
   HTTP.httpJSON req
 
 patch :: (ToJSON a, FromJSON a)
@@ -104,12 +123,8 @@ patch :: (ToJSON a, FromJSON a)
 patch config name getId oldObj newObj =
   let p = Diff.diff (toJSON oldObj) (toJSON newObj)
   in do
-    req' <- HTTP.parseRequest baseUrl
-    let req = HTTP.setRequestMethod "PATCH"
-                (HTTP.setRequestHeaders (createHeaders config)
-                   (HTTP.setRequestPath
-                      (createPath config (Item (name, getId oldObj)))
-                      (HTTP.setRequestBodyJSON p req')))
+    req <- createRequest' config "PATCH" p $ createPath config
+                                               (Item (name, getId oldObj))
     HTTP.httpJSON req
 
 getUser :: Config
@@ -164,11 +179,7 @@ simulate :: Config
          -> Simulate.T
          -> IO (HTTP.Response Simulate.Result)
 simulate config obj = do
-  req' <- HTTP.parseRequest baseUrl
-  let req = HTTP.setRequestMethod "POST"
-              (HTTP.setRequestHeaders (createHeaders config)
-                 (HTTP.setRequestPath (createPath config (Col "simulate"))
-                    (HTTP.setRequestBodyJSON obj req')))
+  req <- createRequest' config "POST" obj $ createPath config (Col "simulate")
   HTTP.httpJSON req
 
 createSecret :: Config

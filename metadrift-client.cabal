@@ -31,7 +31,8 @@ library
                        Metadrift.Internal.Service.Card,
                        Metadrift.Internal.Service.User,
                        Metadrift.Internal.Service.Simulate
-                       Metadrift.Internal.Service.Secret
+                       Metadrift.Internal.Service.Secret,
+                       Metadrift.Internal.HmacAuthClient
 
   build-depends:       base >= 4.7 && < 5
                        , wreq
@@ -50,6 +51,11 @@ library
                        , containers
                        , MissingH
                        , time
+                       , cryptohash
+                       , byteable
+                       , base64-bytestring
+                       , case-insensitive
+                       , old-locale
   default-language:    Haskell2010
 
 executable metad
