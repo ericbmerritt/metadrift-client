@@ -8,6 +8,7 @@ import qualified Data.Yaml as Yaml
 import qualified Metadrift.Resources.User as Card
 import qualified Metadrift.Resources.Card as User
 import qualified Metadrift.Resources.Simulate as Simulate
+import qualified Metadrift.Resources.Secret as Secret
 import qualified Metadrift.Service as Service
 import           System.Environment (getArgs, getEnv)
 import           System.Exit (ExitCode(..), exitWith)
@@ -16,7 +17,7 @@ import           System.FilePath ((</>))
 type MainFun = Service.Config -> [T.Text] -> IO ExitCode
 
 commands :: [(String, MainFun)]
-commands = [User.command, Card.command, Simulate.command]
+commands = [User.command, Card.command, Simulate.command, Secret.command]
 
 commandNames :: String
 commandNames = List.intercalate ", " $ List.map fst commands
