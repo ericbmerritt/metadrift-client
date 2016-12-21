@@ -3,11 +3,13 @@
 
 module Metadrift.Internal.Resources.Card where
 
+import           Control.Monad (mapM)
 import qualified Data.Either.Utils as EitherUtils
-import qualified Data.Text.Read as Read
 import qualified Data.Lens.Common as Lens
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Data.Text.Read as Read
+import qualified Data.Yaml as Yaml
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Resources.Support as Support
 import qualified Metadrift.Internal.Service as Service
@@ -17,10 +19,11 @@ import qualified Network.HTTP.Simple as HTTP
 import           Options.Generic (ParseRecord)
 import           Prelude hiding (min, max)
 import           System.Exit (ExitCode(..))
+import           System.IO (FilePath)
 
 data Command = Get { gname :: T.Text }
-             |
-               Create
+             | Load FilePath
+             | Create
                  { title :: T.Text
                  , body :: T.Text
                  , workflow :: T.Text
@@ -50,6 +53,7 @@ instance ParseRecord Command
 setMap :: Support.UpdateMap Service.Card.T
 setMap = Map.fromList
            [ ("title", Lens.setL Service.Card._title)
+           , ("doer", Lens.setL Service.Card._doer . Just)
            , ("body", Lens.setL Service.Card._body)
            , ("priority", Lens.setL Service.Card._priority .
                           fst .
@@ -66,6 +70,7 @@ setMap = Map.fromList
 addMap :: Support.UpdateMap Service.Card.T
 addMap = Map.fromList
            [ ("title", Lens.setL Service.Card._title)
+           , ("doer", Lens.setL Service.Card._doer . Just)
            , ("body", Lens.setL Service.Card._body)
            , ("priority", Lens.setL Service.Card._priority .
                           fst .
@@ -88,13 +93,42 @@ update action fieldName value config card =
   case Map.lookup action actionMap of
     Just aMap ->
       Support.setField aMap card fieldName value >>= \case
-        Just newUser -> Service.patchCard config card newUser >>= Support.printBody
+        Just newCard -> Service.patchCard config card newCard >>= Support.printBody
         Nothing      -> return $ ExitFailure 100
     Nothing -> do
       putStrLn ("Invalid action specified" ++ T.unpack action)
       return $ ExitFailure 99
 
+updateCard :: Service.Config
+           -> T.Text -> Service.Card.T -> IO Service.Card.T
+updateCard config cardName newCard = do
+  existingCard <- HTTP.getResponseBody <$> Service.getCard config cardName
+  HTTP.getResponseBody <$> Service.patchCard config existingCard newCard
+
+processCard :: Service.Config -> Service.Card.T -> IO Service.Card.T
+processCard config card =
+  case Service.Card.name card of
+    Just cardName ->
+      updateCard config cardName card
+    Nothing ->
+      HTTP.getResponseBody <$> Service.createCard config card
+
+summary :: Service.Card.T -> T.Text
+summary Service.Card.T { Service.Card.name = Just name, Service.Card.title } =
+  T.concat [name, " - ", title]
+summary Service.Card.T { Service.Card.name = Nothing, Service.Card.title } =
+  T.concat ["NEW - ", title]
+
 doCommand :: Service.Config -> Command -> IO ExitCode
+doCommand config (Load filepath) = do
+  results <- Yaml.decodeFile filepath :: IO (Maybe [Service.Card.T])
+  case results of
+    Just cards ->
+      mapM (processCard config) cards >>= Support.printBodies
+    Nothing -> do
+      putStrLn "Failed to parse file"
+      return $ ExitFailure 90
+
 doCommand config AddEstimate { name, uid, p5, p95 } = do
   result <- Service.getCard config name
   let card@Service.Card.T { Service.Card.estimates } = HTTP.getResponseBody
