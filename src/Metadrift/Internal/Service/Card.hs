@@ -34,6 +34,7 @@ $(Aeson.deriveJSON Utils.defaultAesonOptions ''Workflow)
 data T =
        T
          { name :: Maybe T.Text
+         , doer :: Maybe T.Text
          , title :: T.Text
          , body :: T.Text
          , estimates :: [Estimate]
