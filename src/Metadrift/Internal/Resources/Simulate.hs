@@ -15,8 +15,8 @@ import           System.Exit (ExitCode(..))
 data Command =
        Command
          { percentile :: Double
-         , teams :: [T.Text]
-         , tags :: [T.Text]
+         , team :: [T.Text]
+         , tag :: [T.Text]
          }
   deriving (Generic, Show)
 
@@ -29,12 +29,12 @@ maybeToText el =
   Just el
 
 doCommand :: Service.Config -> Command -> IO ExitCode
-doCommand config Command { percentile, teams, tags } =
+doCommand config Command { percentile, team, tag } =
   Service.simulate config
     Service.Simulate.T
       { Service.Simulate.percentile
-      , Service.Simulate.tags = maybeToText tags
-      , Service.Simulate.teams = maybeToText teams
+      , Service.Simulate.tags = maybeToText tag
+      , Service.Simulate.teams = maybeToText team
       } >>= Support.printBody
 
 main :: Service.Config -> [T.Text] -> IO ExitCode

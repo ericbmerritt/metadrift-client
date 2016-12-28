@@ -105,13 +105,21 @@ delete config name objId = do
   req <- createRequest config "DELETE" $ createPath config (Item (name, objId))
   HTTP.httpJSON req
 
+convertToQueryString :: [(T.Text, T.Text)] -> [(B.ByteString, Maybe B.ByteString)]
+convertToQueryString = map
+                         (\(k, v) ->
+                            (Encoding.encodeUtf8 k, Just $ Encoding.encodeUtf8 v))
+
 getAll :: FromJSON a
        => Config
        -> T.Text
+       -> [(T.Text, T.Text)]
        -> IO (HTTP.Response [a])
-getAll config name = do
-  req <- createRequest config "GET" $ createPath config (Col name)
-  HTTP.httpJSON req
+getAll config name baseQS =
+  let qs = convertToQueryString baseQS
+  in do
+    req <- createRequest config "GET" $ createPath config (Col name)
+    HTTP.httpJSON $ HTTP.setRequestQueryString qs req
 
 patch :: (ToJSON a, FromJSON a)
       => Config
@@ -135,7 +143,7 @@ getUser config = get config "users"
 getUsers :: Config
          -> IO (HTTP.Response [User.T])
 getUsers config =
-  getAll config "users"
+  getAll config "users" []
 
 patchUser :: Config
           -> User.T
@@ -154,9 +162,12 @@ getCard :: Config
 getCard config = get config "cards"
 
 getCards :: Config
+         -> [T.Text]
          -> IO (HTTP.Response [Card.T])
-getCards config =
-  getAll config "cards"
+getCards config [] =
+  getAll config "cards" []
+getCards config tags =
+  getAll config "cards" [("tags", T.intercalate "," tags)]
 
 patchCard :: Config
           -> Card.T

@@ -23,8 +23,11 @@ import           System.IO (FilePath)
 
 data Command = Get { gname :: T.Text }
              | Load FilePath
-             | Create
+             | Own { cardName :: T.Text, username :: T.Text }
+             |
+               Create
                  { title :: T.Text
+                 , doer :: Maybe T.Text
                  , body :: T.Text
                  , workflow :: T.Text
                  , priority :: Double
@@ -44,7 +47,7 @@ data Command = Get { gname :: T.Text }
                  , p5 :: Double
                  , p95 :: Double
                  }
-             | List
+             | List { short :: Bool, tag :: [T.Text] }
              | Delete { dname :: T.Text }
   deriving (Generic, Show)
 
@@ -128,7 +131,6 @@ doCommand config (Load filepath) = do
     Nothing -> do
       putStrLn "Failed to parse file"
       return $ ExitFailure 90
-
 doCommand config AddEstimate { name, uid, p5, p95 } = do
   result <- Service.getCard config name
   let card@Service.Card.T { Service.Card.estimates } = HTTP.getResponseBody
@@ -143,9 +145,16 @@ doCommand config AddEstimate { name, uid, p5, p95 } = do
                                      } : estimates
         }
   Service.patchCard config card newCard >>= Support.printBody
-doCommand config List = do
-  cards <- HTTP.getResponseBody <$> Service.getCards config
+doCommand config List { short = False, tag } = do
+  cards <- HTTP.getResponseBody <$> Service.getCards config tag
   Support.printBodies cards
+doCommand config List { short = True, tag } = do
+  cards <- HTTP.getResponseBody <$> Service.getCards config tag
+  Support.printBodies $ map summary cards
+doCommand config Own { cardName, username } = do
+  result <- Service.getCard config cardName
+  let card = HTTP.getResponseBody result
+  update "set" "doer" username config card
 doCommand config Update { name, op, fieldName, value } = do
   result <- Service.getCard config name
   let card = HTTP.getResponseBody result
@@ -154,11 +163,12 @@ doCommand config Delete { dname } =
   Service.deleteCard config dname >>= Support.printBody
 doCommand config Get { gname } =
   Service.getCard config gname >>= Support.printBody
-doCommand config Create { title, body, workflow, priority, tags } =
+doCommand config Create { title, doer, body, workflow, priority, tags } =
   Service.createCard config
     Service.Card.T
       { Service.Card.name = Nothing
       , Service.Card.title
+      , Service.Card.doer
       , Service.Card.body
       , Service.Card.workflow = Service.Card.stringToWorkflow workflow
       , Service.Card.estimates = []
