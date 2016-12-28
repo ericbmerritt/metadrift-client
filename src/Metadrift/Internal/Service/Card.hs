@@ -10,6 +10,7 @@ import           Data.Lens.Template (nameMakeLens)
 import qualified Data.Text as T
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Utils as Utils
+import           Options.Generic (ParseField)
 
 data Range = Range { p5 :: Double, p95 :: Double }
   deriving Generic
@@ -27,9 +28,11 @@ data Workflow = Backlog
               | Doing
               | Done
               | Archive
-  deriving Generic
+  deriving (Generic, Show, Read)
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''Workflow)
+
+instance ParseField Workflow
 
 data T =
        T
@@ -54,9 +57,17 @@ instance Exception CommandException
 
 stringToWorkflow :: T.Text -> Workflow
 stringToWorkflow "backlog" = Backlog
-stringToWorkflow "codereview" = CardReview
+stringToWorkflow "cardreview" = CardReview
 stringToWorkflow "todo" = ToDo
 stringToWorkflow "doing" = Doing
 stringToWorkflow "done" = Done
 stringToWorkflow "archive" = Archive
 stringToWorkflow wf = throw $ InvalidWorkflowException wf
+
+workflowToString :: Workflow -> T.Text
+workflowToString Backlog = "backlog"
+workflowToString CardReview = "cardreview"
+workflowToString ToDo = "todo"
+workflowToString Doing = "doing"
+workflowToString Done = "done"
+workflowToString Archive = "archive"

@@ -44,7 +44,12 @@ data Command = Get { gname :: T.Text }
                  , p5 :: Double
                  , p95 :: Double
                  }
-             | List { short :: Bool, tag :: [T.Text] }
+             |
+               List
+                 { short :: Bool
+                 , tag :: [T.Text]
+                 , wflw :: [Service.Card.Workflow]
+                 }
              | Delete { dname :: T.Text }
   deriving (Generic, Show)
 
@@ -134,11 +139,11 @@ doCommand config AddEstimate { name, uid, p5, p95 } = do
                                      } : estimates
         }
   Service.patchCard config card newCard >>= Support.printBody
-doCommand config List { short = False, tag } = do
-  cards <- HTTP.getResponseBody <$> Service.getCards config tag
+doCommand config List { short = False, tag, wflw } = do
+  cards <- HTTP.getResponseBody <$> Service.getCards config tag wflw
   Support.printBodies cards
-doCommand config List { short = True, tag } = do
-  cards <- HTTP.getResponseBody <$> Service.getCards config tag
+doCommand config List { short = True, tag, wflw } = do
+  cards <- HTTP.getResponseBody <$> Service.getCards config tag wflw
   Support.printBodies $ map summary cards
 doCommand config Own { cardName, username } = do
   result <- Service.getCard config cardName

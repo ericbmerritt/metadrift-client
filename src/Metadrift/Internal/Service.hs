@@ -3,6 +3,7 @@
 
 module Metadrift.Internal.Service where
 
+import qualified Data.Maybe as Maybe
 import           Debug.Trace
 import           Data.Aeson (ToJSON, FromJSON, toJSON)
 import qualified Data.Aeson.Diff as Diff
@@ -135,6 +136,10 @@ patch config name getId oldObj newObj =
                                                (Item (name, getId oldObj))
     HTTP.httpJSON req
 
+toTag :: T.Text -> [T.Text] -> Maybe (T.Text, T.Text)
+toTag _name [] = Nothing
+toTag name values = Just (name, T.intercalate "," values)
+
 getUser :: Config
         -> T.Text
         -> IO (HTTP.Response User.T)
@@ -163,11 +168,14 @@ getCard config = get config "cards"
 
 getCards :: Config
          -> [T.Text]
+         -> [Card.Workflow]
          -> IO (HTTP.Response [Card.T])
-getCards config [] =
-  getAll config "cards" []
-getCards config tags =
-  getAll config "cards" [("tags", T.intercalate "," tags)]
+getCards config tags workflows =
+  getAll config "cards" $ Maybe.catMaybes
+                            [ toTag "tags" tags
+                            , toTag "workflow" $ map Card.workflowToString
+                                                   workflows
+                            ]
 
 patchCard :: Config
           -> Card.T
