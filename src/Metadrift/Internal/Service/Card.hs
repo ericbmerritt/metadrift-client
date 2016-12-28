@@ -39,7 +39,6 @@ data T =
          , body :: T.Text
          , estimates :: [Estimate]
          , workflow :: Workflow
-         , priority :: Double
          , tags :: [T.Text]
          }
   deriving (Generic)

@@ -4,11 +4,9 @@
 module Metadrift.Internal.Resources.Card where
 
 import           Control.Monad (mapM)
-import qualified Data.Either.Utils as EitherUtils
 import qualified Data.Lens.Common as Lens
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
-import qualified Data.Text.Read as Read
 import qualified Data.Yaml as Yaml
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Resources.Support as Support
@@ -30,7 +28,6 @@ data Command = Get { gname :: T.Text }
                  , doer :: Maybe T.Text
                  , body :: T.Text
                  , workflow :: T.Text
-                 , priority :: Double
                  , tags :: [T.Text]
                  }
              |
@@ -58,10 +55,6 @@ setMap = Map.fromList
            [ ("title", Lens.setL Service.Card._title)
            , ("doer", Lens.setL Service.Card._doer . Just)
            , ("body", Lens.setL Service.Card._body)
-           , ("priority", Lens.setL Service.Card._priority .
-                          fst .
-                          EitherUtils.forceEither .
-                          Read.rational)
            , ("workflow", \val obj ->
                             Lens.setL
                               Service.Card._workflow
@@ -75,10 +68,6 @@ addMap = Map.fromList
            [ ("title", Lens.setL Service.Card._title)
            , ("doer", Lens.setL Service.Card._doer . Just)
            , ("body", Lens.setL Service.Card._body)
-           , ("priority", Lens.setL Service.Card._priority .
-                          fst .
-                          EitherUtils.forceEither .
-                          Read.rational)
            , ("workflow", \val obj ->
                             Lens.setL
                               Service.Card._workflow
@@ -163,7 +152,7 @@ doCommand config Delete { dname } =
   Service.deleteCard config dname >>= Support.printBody
 doCommand config Get { gname } =
   Service.getCard config gname >>= Support.printBody
-doCommand config Create { title, doer, body, workflow, priority, tags } =
+doCommand config Create { title, doer, body, workflow, tags } =
   Service.createCard config
     Service.Card.T
       { Service.Card.name = Nothing
@@ -172,7 +161,6 @@ doCommand config Create { title, doer, body, workflow, priority, tags } =
       , Service.Card.body
       , Service.Card.workflow = Service.Card.stringToWorkflow workflow
       , Service.Card.estimates = []
-      , Service.Card.priority
       , Service.Card.tags
       } >>= Support.printBody
 
