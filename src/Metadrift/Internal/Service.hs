@@ -173,8 +173,8 @@ getCards :: Config
 getCards config tags workflows =
   getAll config "cards" $ Maybe.catMaybes
                             [ toTag "tags" tags
-                            , toTag "workflow" $ map Card.workflowToString
-                                                   workflows
+                            , toTag "workflows" $ map Card.workflowToString
+                                                    workflows
                             ]
 
 patchCard :: Config

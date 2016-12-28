@@ -10,7 +10,6 @@ import           Data.Lens.Template (nameMakeLens)
 import qualified Data.Text as T
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Utils as Utils
-import           Options.Generic (ParseField)
 
 data Range = Range { p5 :: Double, p95 :: Double }
   deriving Generic
@@ -31,8 +30,6 @@ data Workflow = Backlog
   deriving (Generic, Show, Read)
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''Workflow)
-
-instance ParseField Workflow
 
 data T =
        T
