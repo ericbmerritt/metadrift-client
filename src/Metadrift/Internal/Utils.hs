@@ -2,6 +2,7 @@
 
 module Metadrift.Internal.Utils where
 
+import           Data.Char (toLower)
 import           Data.Aeson (ToJSON)
 import qualified Data.Aeson.TH as Aeson
 import qualified Data.ByteString.Char8 as Char8
@@ -53,6 +54,7 @@ defaultAesonOptions =
   Aeson.defaultOptions
     { Aeson.omitNothingFields = True
     , Aeson.unwrapUnaryRecords = True
+    , Aeson.constructorTagModifier = map toLower
     }
 
 prettyPrint :: (ToJSON a) => a -> IO ()

@@ -3,6 +3,7 @@
 
 module Metadrift.Internal.Service where
 
+import qualified Data.Maybe as Maybe
 import           Debug.Trace
 import           Data.Aeson (ToJSON, FromJSON, toJSON)
 import qualified Data.Aeson.Diff as Diff
@@ -105,13 +106,21 @@ delete config name objId = do
   req <- createRequest config "DELETE" $ createPath config (Item (name, objId))
   HTTP.httpJSON req
 
+convertToQueryString :: [(T.Text, T.Text)] -> [(B.ByteString, Maybe B.ByteString)]
+convertToQueryString = map
+                         (\(k, v) ->
+                            (Encoding.encodeUtf8 k, Just $ Encoding.encodeUtf8 v))
+
 getAll :: FromJSON a
        => Config
        -> T.Text
+       -> [(T.Text, T.Text)]
        -> IO (HTTP.Response [a])
-getAll config name = do
-  req <- createRequest config "GET" $ createPath config (Col name)
-  HTTP.httpJSON req
+getAll config name baseQS =
+  let qs = convertToQueryString baseQS
+  in do
+    req <- createRequest config "GET" $ createPath config (Col name)
+    HTTP.httpJSON $ HTTP.setRequestQueryString qs req
 
 patch :: (ToJSON a, FromJSON a)
       => Config
@@ -127,6 +136,10 @@ patch config name getId oldObj newObj =
                                                (Item (name, getId oldObj))
     HTTP.httpJSON req
 
+toTag :: T.Text -> [T.Text] -> Maybe (T.Text, T.Text)
+toTag _name [] = Nothing
+toTag name values = Just (name, T.intercalate "," values)
+
 getUser :: Config
         -> T.Text
         -> IO (HTTP.Response User.T)
@@ -135,7 +148,7 @@ getUser config = get config "users"
 getUsers :: Config
          -> IO (HTTP.Response [User.T])
 getUsers config =
-  getAll config "users"
+  getAll config "users" []
 
 patchUser :: Config
           -> User.T
@@ -154,9 +167,15 @@ getCard :: Config
 getCard config = get config "cards"
 
 getCards :: Config
+         -> [T.Text]
+         -> [Card.Workflow]
          -> IO (HTTP.Response [Card.T])
-getCards config =
-  getAll config "cards"
+getCards config tags workflows =
+  getAll config "cards" $ Maybe.catMaybes
+                            [ toTag "tags" tags
+                            , toTag "workflows" $ map Card.workflowToString
+                                                    workflows
+                            ]
 
 patchCard :: Config
           -> Card.T

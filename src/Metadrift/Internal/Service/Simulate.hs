@@ -8,6 +8,7 @@ import           Data.Lens.Template (nameMakeLens)
 import qualified Data.Text as T
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Utils as Utils
+import qualified Metadrift.Internal.Service.Card as Card
 import           Data.Time.Clock (UTCTime)
 
 data Excluded = Excluded { name :: T.Text, missingEstimate :: T.Text }
@@ -35,6 +36,7 @@ data T =
          { percentile :: Double
          , teams :: Maybe [T.Text]
          , tags :: Maybe [T.Text]
+         , workflows :: Maybe [Card.Workflow]
          }
   deriving Generic
 

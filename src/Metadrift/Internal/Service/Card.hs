@@ -27,18 +27,18 @@ data Workflow = Backlog
               | Doing
               | Done
               | Archive
-  deriving Generic
+  deriving (Generic, Show, Read)
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''Workflow)
 
 data T =
        T
          { name :: Maybe T.Text
+         , doer :: Maybe T.Text
          , title :: T.Text
          , body :: T.Text
          , estimates :: [Estimate]
          , workflow :: Workflow
-         , priority :: Double
          , tags :: [T.Text]
          }
   deriving (Generic)
@@ -54,9 +54,17 @@ instance Exception CommandException
 
 stringToWorkflow :: T.Text -> Workflow
 stringToWorkflow "backlog" = Backlog
-stringToWorkflow "codereview" = CardReview
+stringToWorkflow "cardreview" = CardReview
 stringToWorkflow "todo" = ToDo
 stringToWorkflow "doing" = Doing
 stringToWorkflow "done" = Done
 stringToWorkflow "archive" = Archive
 stringToWorkflow wf = throw $ InvalidWorkflowException wf
+
+workflowToString :: Workflow -> T.Text
+workflowToString Backlog = "backlog"
+workflowToString CardReview = "cardreview"
+workflowToString ToDo = "todo"
+workflowToString Doing = "doing"
+workflowToString Done = "done"
+workflowToString Archive = "archive"

@@ -3,11 +3,11 @@
 
 module Metadrift.Internal.Resources.Card where
 
-import qualified Data.Either.Utils as EitherUtils
-import qualified Data.Text.Read as Read
+import           Control.Monad (mapM)
 import qualified Data.Lens.Common as Lens
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
+import qualified Data.Yaml as Yaml
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Resources.Support as Support
 import qualified Metadrift.Internal.Service as Service
@@ -17,14 +17,17 @@ import qualified Network.HTTP.Simple as HTTP
 import           Options.Generic (ParseRecord)
 import           Prelude hiding (min, max)
 import           System.Exit (ExitCode(..))
+import           System.IO (FilePath)
 
 data Command = Get { gname :: T.Text }
+             | Load FilePath
+             | Own { cardName :: T.Text, username :: T.Text }
              |
                Create
                  { title :: T.Text
+                 , doer :: Maybe T.Text
                  , body :: T.Text
                  , workflow :: T.Text
-                 , priority :: Double
                  , tags :: [T.Text]
                  }
              |
@@ -41,7 +44,7 @@ data Command = Get { gname :: T.Text }
                  , p5 :: Double
                  , p95 :: Double
                  }
-             | List
+             | List { short :: Bool, tag :: [T.Text], wflw :: [T.Text] }
              | Delete { dname :: T.Text }
   deriving (Generic, Show)
 
@@ -50,11 +53,8 @@ instance ParseRecord Command
 setMap :: Support.UpdateMap Service.Card.T
 setMap = Map.fromList
            [ ("title", Lens.setL Service.Card._title)
+           , ("doer", Lens.setL Service.Card._doer . Just)
            , ("body", Lens.setL Service.Card._body)
-           , ("priority", Lens.setL Service.Card._priority .
-                          fst .
-                          EitherUtils.forceEither .
-                          Read.rational)
            , ("workflow", \val obj ->
                             Lens.setL
                               Service.Card._workflow
@@ -66,11 +66,8 @@ setMap = Map.fromList
 addMap :: Support.UpdateMap Service.Card.T
 addMap = Map.fromList
            [ ("title", Lens.setL Service.Card._title)
+           , ("doer", Lens.setL Service.Card._doer . Just)
            , ("body", Lens.setL Service.Card._body)
-           , ("priority", Lens.setL Service.Card._priority .
-                          fst .
-                          EitherUtils.forceEither .
-                          Read.rational)
            , ("workflow", \val obj ->
                             Lens.setL
                               Service.Card._workflow
@@ -88,13 +85,41 @@ update action fieldName value config card =
   case Map.lookup action actionMap of
     Just aMap ->
       Support.setField aMap card fieldName value >>= \case
-        Just newUser -> Service.patchCard config card newUser >>= Support.printBody
+        Just newCard -> Service.patchCard config card newCard >>= Support.printBody
         Nothing      -> return $ ExitFailure 100
     Nothing -> do
       putStrLn ("Invalid action specified" ++ T.unpack action)
       return $ ExitFailure 99
 
+updateCard :: Service.Config
+           -> T.Text -> Service.Card.T -> IO Service.Card.T
+updateCard config cardName newCard = do
+  existingCard <- HTTP.getResponseBody <$> Service.getCard config cardName
+  HTTP.getResponseBody <$> Service.patchCard config existingCard newCard
+
+processCard :: Service.Config -> Service.Card.T -> IO Service.Card.T
+processCard config card =
+  case Service.Card.name card of
+    Just cardName ->
+      updateCard config cardName card
+    Nothing ->
+      HTTP.getResponseBody <$> Service.createCard config card
+
+summary :: Service.Card.T -> T.Text
+summary Service.Card.T { Service.Card.name = Just name, Service.Card.title } =
+  T.concat [name, " - ", title]
+summary Service.Card.T { Service.Card.name = Nothing, Service.Card.title } =
+  T.concat ["NEW - ", title]
+
 doCommand :: Service.Config -> Command -> IO ExitCode
+doCommand config (Load filepath) = do
+  results <- Yaml.decodeFile filepath :: IO (Maybe [Service.Card.T])
+  case results of
+    Just cards ->
+      mapM (processCard config) cards >>= Support.printBodies
+    Nothing -> do
+      putStrLn "Failed to parse file"
+      return $ ExitFailure 90
 doCommand config AddEstimate { name, uid, p5, p95 } = do
   result <- Service.getCard config name
   let card@Service.Card.T { Service.Card.estimates } = HTTP.getResponseBody
@@ -109,9 +134,18 @@ doCommand config AddEstimate { name, uid, p5, p95 } = do
                                      } : estimates
         }
   Service.patchCard config card newCard >>= Support.printBody
-doCommand config List = do
-  cards <- HTTP.getResponseBody <$> Service.getCards config
+doCommand config List { short = False, tag, wflw } = do
+  cards <- HTTP.getResponseBody <$> Service.getCards config tag
+                                      (map Service.Card.stringToWorkflow wflw)
   Support.printBodies cards
+doCommand config List { short = True, tag, wflw } = do
+  cards <- HTTP.getResponseBody <$> Service.getCards config tag
+                                      (map Service.Card.stringToWorkflow wflw)
+  Support.printBodies $ map summary cards
+doCommand config Own { cardName, username } = do
+  result <- Service.getCard config cardName
+  let card = HTTP.getResponseBody result
+  update "set" "doer" username config card
 doCommand config Update { name, op, fieldName, value } = do
   result <- Service.getCard config name
   let card = HTTP.getResponseBody result
@@ -120,15 +154,15 @@ doCommand config Delete { dname } =
   Service.deleteCard config dname >>= Support.printBody
 doCommand config Get { gname } =
   Service.getCard config gname >>= Support.printBody
-doCommand config Create { title, body, workflow, priority, tags } =
+doCommand config Create { title, doer, body, workflow, tags } =
   Service.createCard config
     Service.Card.T
       { Service.Card.name = Nothing
       , Service.Card.title
+      , Service.Card.doer
       , Service.Card.body
       , Service.Card.workflow = Service.Card.stringToWorkflow workflow
       , Service.Card.estimates = []
-      , Service.Card.priority
       , Service.Card.tags
       } >>= Support.printBody
 
