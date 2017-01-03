@@ -3,6 +3,8 @@
 
 module Metadrift.Internal.Resources.Card where
 
+import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import           Control.Monad (mapM)
 import qualified Data.Lens.Common as Lens
 import qualified Data.Map.Strict as Map
@@ -106,10 +108,21 @@ processCard config card =
       HTTP.getResponseBody <$> Service.createCard config card
 
 summary :: Service.Card.T -> T.Text
-summary Service.Card.T { Service.Card.name = Just name, Service.Card.title } =
-  T.concat [name, " - ", title]
-summary Service.Card.T { Service.Card.name = Nothing, Service.Card.title } =
-  T.concat ["NEW - ", title]
+summary Service.Card.T
+  { Service.Card.name
+  , Service.Card.title
+  , Service.Card.doer
+  , Service.Card.tags
+  } =
+  T.concat
+    [ Maybe.fromMaybe "NEW" name
+    , " - "
+    , Maybe.fromMaybe "NOT ASSIGNED" doer
+    , " - "
+    , T.intercalate "," $ List.sort tags
+    , " - "
+    , title
+    ]
 
 doCommand :: Service.Config -> Command -> IO ExitCode
 doCommand config (Load filepath) = do
