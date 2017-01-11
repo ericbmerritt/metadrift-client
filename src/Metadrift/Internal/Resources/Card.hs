@@ -21,7 +21,7 @@ import           Prelude hiding (min, max)
 import           System.Exit (ExitCode(..))
 import           System.IO (FilePath)
 
-data Command = Get { gname :: T.Text }
+data Command = Get T.Text
              | Load FilePath
              | Own { cardName :: T.Text, username :: T.Text }
              |
@@ -47,7 +47,7 @@ data Command = Get { gname :: T.Text }
                  , p95 :: Double
                  }
              | List { short :: Bool, tag :: [T.Text], wflw :: [T.Text] }
-             | Delete { dname :: T.Text }
+             | Delete T.Text
              | ProjectedCompletionDates
   deriving (Generic, Show)
 
@@ -167,9 +167,9 @@ doCommand config Update { name, op, fieldName, value } = do
   result <- Service.getCard config name
   let card = HTTP.getResponseBody result
   update op fieldName value config card
-doCommand config Delete { dname } =
+doCommand config (Delete dname) =
   Service.deleteCard config dname >>= Support.printBody
-doCommand config Get { gname } =
+doCommand config (Get gname) =
   Service.getCard config gname >>= Support.printBody
 doCommand config Create { title, doer, body, workflow, tags } =
   Service.createCard config

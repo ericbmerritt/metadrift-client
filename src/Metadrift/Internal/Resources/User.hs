@@ -15,7 +15,7 @@ import qualified Network.HTTP.Simple as HTTP
 import           Options.Generic (ParseRecord)
 import           System.Exit (ExitCode(..))
 
-data Command = Get { gid :: T.Text }
+data Command = Get T.Text
              |
                Create
                  { username :: T.Text
@@ -72,7 +72,7 @@ doCommand config Update { uid, op, fieldName, value } = do
   result <- Service.getUser config uid
   let user = HTTP.getResponseBody result
   update op fieldName value config user
-doCommand config Get { gid } =
+doCommand config (Get gid) =
   Service.getUser config gid >>= Support.printBody
 doCommand config Create { username, preferredName, email, teams } =
   Service.createUser config
