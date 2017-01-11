@@ -48,6 +48,7 @@ data Command = Get { gname :: T.Text }
                  }
              | List { short :: Bool, tag :: [T.Text], wflw :: [T.Text] }
              | Delete { dname :: T.Text }
+             | ProjectedCompletionDates
   deriving (Generic, Show)
 
 instance ParseRecord Command
@@ -125,6 +126,9 @@ summary Service.Card.T
     ]
 
 doCommand :: Service.Config -> Command -> IO ExitCode
+doCommand config ProjectedCompletionDates = do
+  results <- HTTP.getResponseBody <$> Service.projectedCompletionDates config
+  Support.printBodies results
 doCommand config (Load filepath) = do
   results <- Yaml.decodeFile filepath :: IO (Maybe [Service.Card.T])
   case results of
