@@ -18,6 +18,7 @@ import qualified Network.HTTP.Simple as HTTP
 import qualified Metadrift.Internal.Service.Card as Card
 import qualified Metadrift.Internal.Service.User as User
 import qualified Metadrift.Internal.Service.Simulate as Simulate
+import qualified Metadrift.Internal.Service.ProjectedCompletionDates as ProjectedCompletionDates
 import qualified Metadrift.Internal.Service.Secret as Secret
 import qualified Metadrift.Internal.HmacAuthClient as HmacAuthClient
 
@@ -69,6 +70,15 @@ createRequest' config method obj path = do
   authorizeRequest config
     (HTTP.setRequestMethod method
        (HTTP.setRequestPath path (HTTP.setRequestBodyJSON obj req)))
+
+createEmptyRequest :: Config
+                   -> B.ByteString
+                   -> B.ByteString
+                   -> IO HTTP.Request
+createEmptyRequest config method path = do
+  req <- HTTP.parseRequest $ getBaseUrl config
+  authorizeRequest config
+    (HTTP.setRequestMethod method (HTTP.setRequestPath path req))
 
 createRequest :: Config
               -> B.ByteString
@@ -211,3 +221,11 @@ deleteSecret :: Config
              -> T.Text
              -> IO (HTTP.Response Secret.T)
 deleteSecret config = delete config "secrets"
+
+projectedCompletionDates :: Config
+                         -> IO (HTTP.Response [ProjectedCompletionDates.T])
+projectedCompletionDates config = do
+  req <- createEmptyRequest config "POST" $ createPath config
+                                              (Item
+                                                 ("cards", "projected-completion-dates"))
+  HTTP.httpJSON req

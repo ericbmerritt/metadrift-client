@@ -32,6 +32,7 @@ library
                        Metadrift.Internal.Service.User,
                        Metadrift.Internal.Service.Simulate
                        Metadrift.Internal.Service.Secret,
+                       Metadrift.Internal.Service.ProjectedCompletionDates,
                        Metadrift.Internal.HmacAuthClient
 
   build-depends:       base >= 4.7 && < 5
