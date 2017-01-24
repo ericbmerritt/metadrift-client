@@ -12,8 +12,13 @@ import qualified Metadrift.Internal.Service.User as Service.User
 import qualified Metadrift.Internal.Resources.Support as Support
 import qualified Metadrift.Internal.Utils as Utils
 import qualified Network.HTTP.Simple as HTTP
-import           Options.Generic (ParseRecord)
 import           System.Exit (ExitCode(..))
+import           Options.Applicative (Parser, (<$>), (<*>), (<>), long, short,
+                                      metavar, help, many, strOption,
+                                      execParserPure, info,
+                                      helper, fullDesc, progDesc, header,
+                                      argument, str, subparser, defaultPrefs)
+import qualified Options.Applicative as OptParse
 
 data Command = Get T.Text
              |
@@ -33,7 +38,70 @@ data Command = Get T.Text
              | List
   deriving (Generic, Show)
 
-instance ParseRecord Command
+parseGet :: Parser Command
+parseGet = Get <$> (T.pack <$> argument str (metavar "NAME"))
+
+parseCreate :: Parser Command
+parseCreate = Create <$> (T.pack <$> strOption
+                                       (long "username"
+                                        <> short 'u'
+                                        <> metavar "STRING"
+                                        <> help
+                                             "The identifying name for this user"))
+                     <*> (T.pack <$> strOption
+                                       (long "preferred-name"
+                                        <> short 'p'
+                                        <> metavar "STRING"
+                                        <> help
+                                             "The prefered name for use in 'normal name' situations"))
+                     <*> (T.pack <$> strOption
+                                       (long "email"
+                                        <> short 'e'
+                                        <> metavar "EMAIL"
+                                        <> help "The email address of the user"))
+                     <*> many
+                           (T.pack <$>
+                            strOption
+                              (long "team"
+                               <> short 't'
+                               <> metavar "STRING"
+                               <> help
+                                    "A name of a team that the user is a part of"))
+
+parseUpdate :: Parser Command
+parseUpdate = Update <$> (T.pack <$> strOption
+                                       (long "username"
+                                        <> short 'u'
+                                        <> metavar "STRING"
+                                        <> help
+                                             "The identifying name for this user"))
+                     <*> (T.pack <$> strOption
+                                       (long "op"
+                                        <> short 'o'
+                                        <> metavar "add|set"
+                                        <> help
+                                             "The operation to perform on the specified field"))
+                     <*> (T.pack <$> strOption
+                                       (long "fieldName"
+                                        <> short 'f'
+                                        <> metavar "STRING"
+                                        <> help
+                                             "The name of the field to update"))
+                     <*> (T.pack <$> strOption
+                                       (long "value"
+                                        <> short 'v'
+                                        <> metavar "STRING"
+                                        <> help
+                                             "The value to set or add to the field"))
+
+parseCommand :: Parser Command
+parseCommand = subparser $
+  OptParse.command "get"
+    (parseGet `Utils.withInfo` "Print the user to the screen") <>
+  OptParse.command "create"
+    (parseCreate `Utils.withInfo` "Create a new user in the system") <>
+  OptParse.command "update"
+    (parseUpdate `Utils.withInfo` "Update the specified user")
 
 setMap :: Support.UpdateMap Service.User.T
 setMap = Map.fromList
@@ -84,8 +152,16 @@ doCommand config Create { username, preferredName, email, teams } =
       } >>= Support.printBody
 
 main :: Service.Config -> [T.Text] -> IO ExitCode
-main cfg = Utils.runCommandWithArgs "user" "Manage users in the system" $
-  doCommand cfg
+main cfg args = do
+  cmd <- Utils.handleParseResult "metad user"
+           (execParserPure defaultPrefs opts (map T.unpack args))
+  doCommand cfg cmd
+
+  where
+    opts = info (helper <*> parseCommand)
+             (fullDesc
+              <> progDesc "Manage a user in the system"
+              <> header "metad user - user management for the system")
 
 command :: (String, Service.Config -> [T.Text] -> IO ExitCode)
 command = ("user", main)

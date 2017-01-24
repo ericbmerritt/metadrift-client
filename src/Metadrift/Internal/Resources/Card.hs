@@ -16,10 +16,16 @@ import qualified Metadrift.Internal.Service as Service
 import qualified Metadrift.Internal.Service.Card as Service.Card
 import qualified Metadrift.Internal.Utils as Utils
 import qualified Network.HTTP.Simple as HTTP
-import           Options.Generic (ParseRecord)
 import           Prelude hiding (min, max)
 import           System.Exit (ExitCode(..))
 import           System.IO (FilePath)
+import           Options.Applicative (Parser, (<$>), (<*>), (<>), option, auto,
+                                      long, short, metavar, help, many, strOption,
+                                      execParserPure, info,
+                                      helper, fullDesc, progDesc, header,
+                                      argument, str, subparser, optional,
+                                      defaultPrefs, flag, pure)
+import qualified Options.Applicative as OptParse
 
 data Command = Get T.Text
              | Load FilePath
@@ -46,12 +52,160 @@ data Command = Get T.Text
                  , p5 :: Double
                  , p95 :: Double
                  }
-             | List { short :: Bool, tag :: [T.Text], wflw :: [T.Text] }
+             | List {  fullCard:: Bool, tag :: [T.Text], wflw :: [T.Text] }
              | Delete T.Text
              | ProjectedCompletionDates
   deriving (Generic, Show)
 
-instance ParseRecord Command
+parseGet :: Parser Command
+parseGet = Get <$> (T.pack <$> argument str (metavar "NAME"))
+
+parseLoad :: Parser Command
+parseLoad = Load <$> argument str (metavar "FILEPATH")
+
+parseOwn :: Parser Command
+parseOwn = Own <$> (T.pack <$> strOption
+                                 (long "name"
+                                  <> short 'n'
+                                  <> metavar "STRING"
+                                  <> help "The name of the card to own"))
+               <*> (T.pack <$> strOption
+                                 (long "username"
+                                  <> short 'u'
+                                  <> metavar "USERNAME"
+                                  <> help
+                                       "The name of the user to make the 'doer' if this card"))
+
+parseCreate :: Parser Command
+parseCreate = Create <$> (T.pack <$> strOption
+                                       (long "title"
+                                        <> short 'i'
+                                        <> metavar "STRING"
+                                        <> help "The one line title of the card"))
+                     <*> optional
+                           (T.pack <$> strOption
+                                         (long "doer"
+                                          <> short 'd'
+                                          <> metavar "USERNAME"
+                                          <> help
+                                               "The person doing the work descriped in the card"))
+                     <*> (T.pack <$> strOption
+                                       (long "body"
+                                        <> short 'b'
+                                        <> metavar "STRING"
+                                        <> help "The body of the card"))
+                     <*> (T.pack <$> strOption
+                                       (long "workflow"
+                                        <> short 'w'
+                                        <> metavar
+                                             "backlog|cardreview|todo|doing|done|archive"
+                                        <> help
+                                             "The workflow stage this card is in"))
+                     <*> many
+                           (T.pack <$>
+                            strOption
+                              (long "tag"
+                               <> short 't'
+                               <> metavar "STRING"
+                               <> help "A tag associated with this card"))
+
+parseUpdate :: Parser Command
+parseUpdate = Update <$> (T.pack <$> strOption
+                                       (long "username"
+                                        <> short 'u'
+                                        <> metavar "STRING"
+                                        <> help
+                                             "The identifying name for this user"))
+                     <*> (T.pack <$> strOption
+                                       (long "op"
+                                        <> short 'o'
+                                        <> metavar "add|set"
+                                        <> help
+                                             "The operation to perform on the specified field"))
+                     <*> (T.pack <$> strOption
+                                       (long "fieldName"
+                                        <> short 'f'
+                                        <> metavar "STRING"
+                                        <> help
+                                             "The name of the field to update"))
+                     <*> (T.pack <$> strOption
+                                       (long "value"
+                                        <> short 'v'
+                                        <> metavar "STRING"
+                                        <> help
+                                             "The value to set or add to the field"))
+
+parseAddEstimate :: Parser Command
+parseAddEstimate = AddEstimate <$> (T.pack <$> strOption
+                                                 (long "name"
+                                                  <> short 'n'
+                                                  <> metavar "STRING"
+                                                  <> help "The name of the card"))
+                               <*> (T.pack <$> strOption
+                                                 (long "username"
+                                                  <> short 'u'
+                                                  <> metavar "USERNAME"
+                                                  <> help
+                                                       "The person to which this estimate belongs"))
+                               <*> option auto
+                                     (long "p5"
+                                      <> short '5'
+                                      <> metavar "DOUBLE"
+                                      <> help
+                                           "The 5 percent level confidence estimate for this card")
+                               <*> option auto
+                                     (long "p95"
+                                      <> short '9'
+                                      <> metavar "DOUBLE"
+                                      <> help
+                                           "The 95 percent level confidence estimate for this card")
+
+parseList :: Parser Command
+parseList = List <$> flag False True
+                       (long "long"
+                        <> short 'l'
+                        <> help "Print full card information for each card")
+                 <*> many
+                       (T.pack <$>
+                        strOption
+                          (long "tag"
+                           <> short 't'
+                           <> metavar "STRING"
+                           <> help "List only cards with this tag"))
+                 <*> many
+                       (T.pack <$> strOption
+                                     (long "workflow"
+                                      <> short 'w'
+                                      <> metavar
+                                           "backlog|cardreview|todo|doing|done|archive"
+                                      <> help
+                                           "The workflow stage to list cards for"))
+
+parseDelete :: Parser Command
+parseDelete = Get <$> (T.pack <$> argument str (metavar "NAME"))
+
+parseProjectedCompletionDates :: Parser Command
+parseProjectedCompletionDates = pure ProjectedCompletionDates
+
+parseCommand :: Parser Command
+parseCommand = subparser $
+  OptParse.command "get"
+    (parseGet `Utils.withInfo` "Print the details of a card") <>
+  OptParse.command "load"
+    (parseLoad `Utils.withInfo` "Load a file containing YAML descriptions of cards (creating or updating as needed") <>
+  OptParse.command "own"
+    (parseOwn `Utils.withInfo` "Set the `doer` field to the value provided") <>
+  OptParse.command "create" (parseCreate `Utils.withInfo` "Create a new card") <>
+  OptParse.command "add-estimate"
+    (parseAddEstimate `Utils.withInfo` "Update an existing card") <>
+  OptParse.command "list"
+    (parseList `Utils.withInfo` "List cards in the system") <>
+  OptParse.command "delete"
+    (parseDelete `Utils.withInfo` "Delete a card on the system") <>
+  OptParse.command "projected-completion-dates"
+    (parseProjectedCompletionDates `Utils.withInfo` "Project completion dates for cards in `Doing`") <>
+  OptParse.command "pcd"
+    (parseProjectedCompletionDates `Utils.withInfo` "Project completion dates for cards in `Doing`")
 
 setMap :: Support.UpdateMap Service.Card.T
 setMap = Map.fromList
@@ -108,8 +262,8 @@ processCard config card =
     Nothing ->
       HTTP.getResponseBody <$> Service.createCard config card
 
-summary :: Service.Card.T -> T.Text
-summary Service.Card.T
+makeSummary :: Service.Card.T -> T.Text
+makeSummary Service.Card.T
   { Service.Card.name
   , Service.Card.title
   , Service.Card.doer
@@ -151,14 +305,14 @@ doCommand config AddEstimate { name, uid, p5, p95 } = do
                                      } : estimates
         }
   Service.patchCard config card newCard >>= Support.printBody
-doCommand config List { short = False, tag, wflw } = do
+doCommand config List { fullCard = True, tag, wflw } = do
   cards <- HTTP.getResponseBody <$> Service.getCards config tag
                                       (map Service.Card.stringToWorkflow wflw)
   Support.printBodies cards
-doCommand config List { short = True, tag, wflw } = do
+doCommand config List { fullCard = False, tag, wflw } = do
   cards <- HTTP.getResponseBody <$> Service.getCards config tag
                                       (map Service.Card.stringToWorkflow wflw)
-  Support.printBodies $ map summary cards
+  Support.printBodies $ map makeSummary cards
 doCommand config Own { cardName, username } = do
   result <- Service.getCard config cardName
   let card = HTTP.getResponseBody result
@@ -184,8 +338,16 @@ doCommand config Create { title, doer, body, workflow, tags } =
       } >>= Support.printBody
 
 main :: Service.Config -> [T.Text] -> IO ExitCode
-main cfg = Utils.runCommandWithArgs "card" "Manage cards in the system" $
-  doCommand cfg
+main cfg args = do
+  cmd <- Utils.handleParseResult "metad card"
+           (execParserPure defaultPrefs opts (map T.unpack args))
+  doCommand cfg cmd
+
+  where
+    opts = info (helper <*> parseCommand)
+             (fullDesc
+              <> progDesc "Manage cards on the system"
+              <> header "metad card - manage cards on the system")
 
 command :: (String, Service.Config -> [T.Text] -> IO ExitCode)
 command = ("card", main)
