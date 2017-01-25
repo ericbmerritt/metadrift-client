@@ -3,14 +3,18 @@
 
 module Metadrift.Internal.Resources.Secret where
 
+import qualified Metadrift.Internal.Utils as Utils
 import qualified Data.Text as T
 import           GHC.Generics (Generic)
 import qualified Metadrift.Internal.Service as Service
 import qualified Metadrift.Internal.Service.Secret as Service.Secret
 import qualified Metadrift.Internal.Resources.Support as Support
-import qualified Metadrift.Internal.Utils as Utils
 import           Options.Generic (ParseRecord)
 import           System.Exit (ExitCode(..))
+import           Options.Applicative (Parser, (<$>), (<*>), (<>), long, short,
+                                      metavar, help, strOption,
+                                      execParserPure, info, helper, fullDesc,
+                                      progDesc, header, optional, defaultPrefs)
 
 data Command =
                Create
@@ -22,6 +26,27 @@ data Command =
   deriving (Generic, Show)
 
 instance ParseRecord Command
+
+commandParser :: Parser Command
+commandParser = Create <$> (T.pack <$> strOption
+                                         (long "access-key"
+                                          <> short 'a'
+                                          <> metavar "STRING"
+                                          <> help
+                                               "The access key to create for the user"))
+                       <*> optional
+                             (T.pack <$> strOption
+                                           (long "secret-key"
+                                            <> short 's'
+                                            <> metavar "STRING"
+                                            <> help
+                                                 "The secret key to set for the user"))
+                       <*> (T.pack <$> strOption
+                                         (long "username"
+                                          <> short 'u'
+                                          <> metavar "USERNAME"
+                                          <> help
+                                               "The name of the user that owns this access/secret key"))
 
 doCommand :: Service.Config -> Command -> IO ExitCode
 doCommand config (Delete userId) =
@@ -35,8 +60,16 @@ doCommand config Create { accessKey, secretKey, user } =
       } >>= Support.printBody
 
 main :: Service.Config -> [T.Text] -> IO ExitCode
-main cfg = Utils.runCommandWithArgs "secrete" "Manage secretes in the system" $
-  doCommand cfg
+main cfg args = do
+  cmd <- Utils.handleParseResult "metad secret"
+           (execParserPure defaultPrefs opts (map T.unpack args))
+  doCommand cfg cmd
+
+  where
+    opts = info (helper <*> commandParser)
+             (fullDesc
+              <> progDesc "Add a secret for the specified user"
+              <> header "metad secret - create api credentials for a user")
 
 command :: (String, Service.Config -> [T.Text] -> IO ExitCode)
 command = ("secret", main)
