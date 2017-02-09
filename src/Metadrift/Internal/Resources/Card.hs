@@ -111,11 +111,11 @@ parseCreate = Create <$> (T.pack <$> strOption
 
 parseUpdate :: Parser Command
 parseUpdate = Update <$> (T.pack <$> strOption
-                                       (long "username"
-                                        <> short 'u'
+                                       (long "name"
+                                        <> short 'n'
                                         <> metavar "STRING"
                                         <> help
-                                             "The identifying name for this user"))
+                                             "The identifying name for this card"))
                      <*> (T.pack <$> strOption
                                        (long "op"
                                         <> short 'o'
@@ -196,6 +196,7 @@ parseCommand = subparser $
   OptParse.command "own"
     (parseOwn `Utils.withInfo` "Set the `doer` field to the value provided") <>
   OptParse.command "create" (parseCreate `Utils.withInfo` "Create a new card") <>
+  OptParse.command "update" (parseUpdate `Utils.withInfo` "Change fields in a card") <>
   OptParse.command "add-estimate"
     (parseAddEstimate `Utils.withInfo` "Update an existing card") <>
   OptParse.command "list"
