@@ -21,10 +21,9 @@ import           System.Exit (ExitCode(..))
 import           System.IO (FilePath)
 import           Options.Applicative (Parser, (<$>), (<*>), (<>), option, auto,
                                       long, short, metavar, help, many, strOption,
-                                      execParserPure, info,
-                                      helper, fullDesc, progDesc, header,
-                                      argument, str, subparser, optional,
-                                      defaultPrefs, flag, pure)
+                                      execParserPure, info, helper, fullDesc,
+                                      progDesc, header, argument, str, subparser,
+                                      optional, defaultPrefs, flag, pure)
 import qualified Options.Applicative as OptParse
 
 data Command = Get T.Text
@@ -52,7 +51,7 @@ data Command = Get T.Text
                  , p5 :: Double
                  , p95 :: Double
                  }
-             | List {  fullCard:: Bool, tag :: [T.Text], wflw :: [T.Text] }
+             | List { fullCard :: Bool, tag :: [T.Text], wflw :: [T.Text] }
              | Delete T.Text
              | ProjectedCompletionDates
   deriving (Generic, Show)
@@ -196,7 +195,8 @@ parseCommand = subparser $
   OptParse.command "own"
     (parseOwn `Utils.withInfo` "Set the `doer` field to the value provided") <>
   OptParse.command "create" (parseCreate `Utils.withInfo` "Create a new card") <>
-  OptParse.command "update" (parseUpdate `Utils.withInfo` "Change fields in a card") <>
+  OptParse.command "update"
+    (parseUpdate `Utils.withInfo` "Change fields in a card") <>
   OptParse.command "add-estimate"
     (parseAddEstimate `Utils.withInfo` "Update an existing card") <>
   OptParse.command "list"

@@ -15,9 +15,9 @@ import qualified Network.HTTP.Simple as HTTP
 import           System.Exit (ExitCode(..))
 import           Options.Applicative (Parser, (<$>), (<*>), (<>), long, short,
                                       metavar, help, many, strOption,
-                                      execParserPure, info,
-                                      helper, fullDesc, progDesc, header,
-                                      argument, str, subparser, defaultPrefs)
+                                      execParserPure, info, helper, fullDesc,
+                                      progDesc, header, argument, str, subparser,
+                                      defaultPrefs)
 import qualified Options.Applicative as OptParse
 
 data Command = Get T.Text

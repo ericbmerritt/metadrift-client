@@ -12,9 +12,9 @@ import qualified Metadrift.Internal.Resources.Support as Support
 import           Options.Generic (ParseRecord)
 import           System.Exit (ExitCode(..))
 import           Options.Applicative (Parser, (<$>), (<*>), (<>), long, short,
-                                      metavar, help, strOption,
-                                      execParserPure, info, helper, fullDesc,
-                                      progDesc, header, optional, defaultPrefs)
+                                      metavar, help, strOption, execParserPure,
+                                      info, helper, fullDesc, progDesc, header,
+                                      optional, defaultPrefs)
 
 data Command =
                Create

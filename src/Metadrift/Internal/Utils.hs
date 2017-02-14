@@ -2,7 +2,7 @@
 
 module Metadrift.Internal.Utils where
 
-import System.IO (hPutStrLn, stderr)
+import           System.IO (hPutStrLn, stderr)
 import           Data.Char (toLower)
 import           Data.Aeson (ToJSON)
 import qualified Data.Aeson.TH as Aeson
@@ -12,7 +12,7 @@ import qualified Data.Text as T
 import           Options.Applicative (Parser, ParserInfo, ParserResult(..), (<*>),
                                       info, helper, progDesc, execCompletion,
                                       renderFailure)
-import System.Exit (exitSuccess, exitWith, ExitCode(..))
+import           System.Exit (exitSuccess, exitWith, ExitCode(..))
 
 defaultAesonOptions :: Aeson.Options
 defaultAesonOptions =

@@ -13,9 +13,8 @@ import qualified Metadrift.Internal.Resources.Support as Support
 import           System.Exit (ExitCode(..))
 import           Options.Applicative (Parser, (<$>), (<*>), (<>), option, auto,
                                       long, short, metavar, help, many, strOption,
-                                      execParserPure, info,
-                                      helper, fullDesc, progDesc, header,
-                                      defaultPrefs)
+                                      execParserPure, info, helper, fullDesc,
+                                      progDesc, header, defaultPrefs)
 
 data Command =
        Command
