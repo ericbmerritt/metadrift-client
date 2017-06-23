@@ -1,3 +1,6 @@
-module Metadrift.Resources.Simulate (main, command) where
+module Metadrift.Resources.Simulate
+  ( main
+  , command
+  ) where
 
-import           Metadrift.Internal.Resources.Simulate
+import Metadrift.Internal.Resources.Simulate

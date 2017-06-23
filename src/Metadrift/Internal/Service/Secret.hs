@@ -4,13 +4,16 @@
 module Metadrift.Internal.Service.Secret where
 
 import qualified Data.Aeson.TH as Aeson
-import           Data.Lens.Template (nameMakeLens)
+import Data.Lens.Template (nameMakeLens)
 import qualified Data.Text as T
-import           GHC.Generics (Generic)
+import GHC.Generics (Generic)
 import qualified Metadrift.Internal.Utils as Utils
 
-data T = T { accessKey :: T.Text, secretKey :: Maybe T.Text, user :: T.Text }
-  deriving (Generic, Show)
+data T = T
+  { accessKey :: T.Text
+  , secretKey :: Maybe T.Text
+  , user :: T.Text
+  } deriving (Generic, Show)
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''T)
 
