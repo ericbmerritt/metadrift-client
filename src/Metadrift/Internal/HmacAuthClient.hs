@@ -11,41 +11,41 @@
 
 module Metadrift.Internal.HmacAuthClient where
 
-import              Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import "cryptohash" Crypto.Hash
 import "cryptohash" Crypto.Hash.MD5 as MD5
-import              Data.ByteString (ByteString)
-import qualified    Data.ByteString.Base64 as BS64
-import qualified    Data.ByteString.Char8 as BS
-import qualified    Data.ByteString.Lazy as B
-import              Data.Byteable (toBytes)
-import              Data.CaseInsensitive (CI)
-import              Data.Maybe (fromMaybe)
-import              Data.Monoid ((<>))
-import              Data.Time
-import              Network.HTTP.Conduit
-import qualified    Network.HTTP.Types as Http
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Base64 as BS64
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy as B
+import Data.Byteable (toBytes)
+import Data.CaseInsensitive (CI)
+import Data.Maybe (fromMaybe)
+import Data.Monoid ((<>))
+import Data.Time
+import Network.HTTP.Conduit
+import qualified Network.HTTP.Types as Http
 
 -- | Various control settings for HMAC authentication
-data HmacAuthSettings alg =
-       HmacAuthSettings
-         { authKeyHeader :: !(CI ByteString)
-         , authTimestampHeader :: !(CI ByteString)
+data HmacAuthSettings alg = HmacAuthSettings
+  { authKeyHeader :: !(CI ByteString)
+  , authTimestampHeader :: !(CI ByteString)
          -- | HMAC signing algorithm
          --
          -- MD5, SHA1, SHA256, and SHA512 supported
-         , authAlgorithm :: alg
+  , authAlgorithm :: alg
          -- | Realm provider.
          --
          -- e.g. Authorization: API key:signature
-         , authRealm :: !ByteString
+  , authRealm :: !ByteString
          -- | Use Header or QueryParam spec.
          --
          -- Currently, only the @Header@ @Strategy@ is supported
-         , authSpec :: !Strategy
-         }
+  , authSpec :: !Strategy
+  }
 
-data Strategy = Header
+data Strategy =
+  Header
 
 -- ^ Use HTTP Header to authorize clients - | Query - ^ TODO Use query
 -- parameters (not yet supported)
@@ -55,7 +55,8 @@ type Key = ByteString
 
 -- | default HMAC client settings
 defaultHmacAuthSettings :: HmacAuthSettings SHA512
-defaultHmacAuthSettings = HmacAuthSettings
+defaultHmacAuthSettings =
+  HmacAuthSettings
   { authRealm = "Hmac"
   , authKeyHeader = "X-auth-key"
   , authTimestampHeader = "X-auth-timestamp"
@@ -69,29 +70,28 @@ defaultHmacAuthSettings = HmacAuthSettings
 -- > applyHmacAuth defaultHmacSettings "secret" $ fromJust $ parseUrl url
 --
 -- Since 0.1.0
-applyHmacAuth :: forall m alg. (MonadIO m, HashAlgorithm alg)
-                            => HmacAuthSettings alg
-                            -> Key
-                            -> Secret
-                            -> Request
-                            -> m Request
-applyHmacAuth cfg@HmacAuthSettings { .. } key secret req = do
+applyHmacAuth
+  :: forall m alg.
+     (MonadIO m, HashAlgorithm alg)
+  => HmacAuthSettings alg -> Key -> Secret -> Request -> m Request
+applyHmacAuth cfg@HmacAuthSettings {..} key secret req = do
   now <- liftIO getCurrentTime
-
   let date = timefmt now
       contentmd5 = MD5.hash $ B.toStrict body
       res = canonicalizedResource req
       payload = buildMessage verb contentmd5 (ctype req) date res
       HMAC hashed = signPayload secret payload
       digest = BS64.encode (toBytes hashed)
-      req' = req
-        { requestHeaders = [ (authTimestampHeader, date)
-                           , (authKeyHeader, key)
-                           , authHeader cfg key digest
-                           ] <> requestHeaders req
+      req' =
+        req
+        { requestHeaders =
+            [ (authTimestampHeader, date)
+            , (authKeyHeader, key)
+            , authHeader cfg key digest
+            ] <>
+            requestHeaders req
         }
   return req'
-
   where
     signPayload :: Secret -> ByteString -> HMAC alg
     signPayload = hmac
@@ -101,8 +101,8 @@ applyHmacAuth cfg@HmacAuthSettings { .. } key secret req = do
     body =
       case requestBody req of
         RequestBodyLBS lbs -> lbs
-        RequestBodyBS bs   -> B.fromStrict bs
-        _                  -> error "RequestBody type Not Supported"
+        RequestBodyBS bs -> B.fromStrict bs
+        _ -> error "RequestBody type Not Supported"
 
 -- ---------------------------------------------------------------------------
 -- --------------------------------------------------------------------------- |
@@ -111,7 +111,7 @@ authHeader :: HmacAuthSettings alg
            -> Key
            -> Secret
            -> (CI ByteString, ByteString)
-authHeader HmacAuthSettings { .. } key sig =
+authHeader HmacAuthSettings {..} key sig =
   let auth = BS.concat [authRealm, " ", key, ":", sig]
   in ("Authorization", auth)
 
@@ -125,12 +125,13 @@ authHeader HmacAuthSettings { .. } key sig =
 --                canonicalizedUri;
 -- @
 --
-buildMessage :: Http.Method    -- ^ HTTP Method
-             -> ByteString  -- ^ md5 Checksum of the request body
-             -> ByteString  -- ^ Content-Type
-             -> ByteString  -- ^ Date header of the HTTP request
-             -> ByteString  -- ^ Canonicalized request location
-             -> ByteString  -- ^ Return the unencoded string to sign
+buildMessage
+  :: Http.Method -- ^ HTTP Method
+  -> ByteString -- ^ md5 Checksum of the request body
+  -> ByteString -- ^ Content-Type
+  -> ByteString -- ^ Date header of the HTTP request
+  -> ByteString -- ^ Canonicalized request location
+  -> ByteString -- ^ Return the unencoded string to sign
 buildMessage verb contentmd5 ctype date resource =
   BS.concat [verb, "\n", contentmd5, "\n", ctype, "\n", date, "\n", resource]
 

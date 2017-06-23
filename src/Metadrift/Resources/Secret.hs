@@ -1,3 +1,6 @@
-module Metadrift.Resources.Secret (main, command) where
+module Metadrift.Resources.Secret
+  ( main
+  , command
+  ) where
 
-import           Metadrift.Internal.Resources.Secret
+import Metadrift.Internal.Resources.Secret

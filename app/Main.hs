@@ -2,17 +2,18 @@
 
 module Main where
 
+import qualified Data.ByteString.Char8 as B8
 import qualified Data.List as List
-import           Data.Text as T
+import Data.Text as T
 import qualified Data.Yaml as Yaml
-import qualified Metadrift.Resources.User as Card
 import qualified Metadrift.Resources.Card as User
-import qualified Metadrift.Resources.Simulate as Simulate
 import qualified Metadrift.Resources.Secret as Secret
+import qualified Metadrift.Resources.Simulate as Simulate
+import qualified Metadrift.Resources.User as Card
 import qualified Metadrift.Service as Service
-import           System.Environment (getArgs, getEnv)
-import           System.Exit (ExitCode(..), exitWith)
-import           System.FilePath ((</>))
+import System.Environment (getArgs, getEnv)
+import System.Exit (ExitCode(..), exitWith)
+import System.FilePath ((</>))
 
 type MainFun = Service.Config -> [T.Text] -> IO ExitCode
 
@@ -26,19 +27,19 @@ routeCommand :: Service.Config -> String -> [String] -> IO ()
 routeCommand config cmd rest =
   let args = List.map T.pack rest
   in case lookup cmd commands of
-    Just fn -> fn config args >>= exitWith
-    Nothing ->
-      putStrLn $ List.concat [cmd, " is not one of ", commandNames]
+       Just fn -> fn config args >>= exitWith
+       Nothing -> putStrLn $ List.concat [cmd, " is not one of ", commandNames]
 
 loadConfig :: IO Service.Config
 loadConfig = do
   home <- getEnv "HOME"
   let configFile = home </> ".metad"
-  config <- Yaml.decodeFile configFile
-  case config of
-    Just service -> return service
-    Nothing -> do
-      putStrLn $ "Expected configuration file at " ++ configFile
+  configBody <- B8.readFile configFile
+  case Yaml.decodeEither configBody of
+    Right service -> return service
+    Left errStr -> do
+      putStrLn $ "Got error for " ++ configFile
+      putStrLn errStr
       exitWith $ ExitFailure 100
 
 main :: IO ()
@@ -46,4 +47,4 @@ main = do
   config <- loadConfig
   getArgs >>= \case
     cmd:rest -> routeCommand config cmd rest
-    _        -> putStrLn ("You must provide subcommand of: " ++ commandNames)
+    _ -> putStrLn ("You must provide subcommand of: " ++ commandNames)

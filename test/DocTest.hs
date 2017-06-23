@@ -1,7 +1,8 @@
-module Main (main) where
+module Main
+  ( main
+  ) where
 
-import           Test.DocTest (doctest)
+import Test.DocTest (doctest)
 
 main :: IO ()
-main =
-  doctest ["-isrc", "src"]
+main = doctest ["-isrc", "src"]

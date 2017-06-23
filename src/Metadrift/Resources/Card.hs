@@ -1,3 +1,6 @@
-module Metadrift.Resources.Card (main, command) where
+module Metadrift.Resources.Card
+  ( main
+  , command
+  ) where
 
-import           Metadrift.Internal.Resources.Card
+import Metadrift.Internal.Resources.Card

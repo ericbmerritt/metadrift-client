@@ -4,19 +4,17 @@
 module Metadrift.Internal.Service.User where
 
 import qualified Data.Aeson.TH as Aeson
-import           Data.Lens.Template (nameMakeLens)
+import Data.Lens.Template (nameMakeLens)
 import qualified Data.Text as T
-import           GHC.Generics (Generic)
+import GHC.Generics (Generic)
 import qualified Metadrift.Internal.Utils as Utils
 
-data T =
-       T
-         { username :: T.Text
-         , preferredName :: T.Text
-         , email :: T.Text
-         , teams :: [T.Text]
-         }
-  deriving (Generic, Show)
+data T = T
+  { username :: T.Text
+  , preferredName :: T.Text
+  , email :: T.Text
+  , teams :: [T.Text]
+  } deriving (Generic, Show)
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''T)
 
