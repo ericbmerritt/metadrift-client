@@ -46,6 +46,7 @@ data Command
                ,  p5 :: Double
                ,  p95 :: Double}
   | List { fullCard :: Bool
+        ,  cardFilter :: Maybe T.Text
         ,  tag :: [T.Text]
         ,  wflw :: [T.Text]}
   | Delete T.Text
@@ -145,6 +146,11 @@ parseList =
     True
     (long "long" <> short 'l' <>
      help "Print full card information for each card") <*>
+  optional
+    (T.pack <$>
+     strOption
+       (long "filter" <> short 'f' <> metavar "STRING" <>
+        help "The filter to apply to users")) <*>
   many
     (T.pack <$>
      strOption
@@ -310,22 +316,30 @@ doCommand config SetEstimate {name, uid, p5, p95} = do
               estimates
               uid
               Service.Card.Estimate
-               { Service.Card.username = uid
-               , Service.Card.range =
-                   Service.Card.Range {Service.Card.p5, Service.Card.p95}
-               }
+              { Service.Card.username = uid
+              , Service.Card.range =
+                  Service.Card.Range {Service.Card.p5, Service.Card.p95}
+              }
               []
         }
   Service.patchCard config card newCard >>= Support.printBody
-doCommand config List {fullCard = True, tag, wflw} = do
+doCommand config List {fullCard = True, cardFilter, tag, wflw} = do
   cards <-
     HTTP.getResponseBody <$>
-    Service.getCards config tag (map Service.Card.stringToWorkflow wflw)
+    Service.getCards
+      config
+      tag
+      (map Service.Card.stringToWorkflow wflw)
+      cardFilter
   Support.printBodies cards
-doCommand config List {fullCard = False, tag, wflw} = do
+doCommand config List {fullCard = False, cardFilter, tag, wflw} = do
   cards <-
     HTTP.getResponseBody <$>
-    Service.getCards config tag (map Service.Card.stringToWorkflow wflw)
+    Service.getCards
+      config
+      tag
+      (map Service.Card.stringToWorkflow wflw)
+      cardFilter
   Support.printBodies $ map makeSummary cards
 doCommand config Own {cardName, username} = do
   result <- Service.getCard config cardName

@@ -16,7 +16,7 @@ import qualified Network.HTTP.Simple as HTTP
 import Options.Applicative
        (Parser, (<$>), (<*>), long, short, metavar, help, many, strOption,
         execParserPure, info, helper, fullDesc, progDesc, header, argument,
-        str, subparser, defaultPrefs)
+        str, subparser, defaultPrefs, optional)
 import qualified Options.Applicative as OptParse
 import System.Exit (ExitCode(..))
 
@@ -30,11 +30,20 @@ data Command
           ,  op :: T.Text
           ,  fieldName :: T.Text
           ,  value :: T.Text}
-  | List
+  | List { resultFilter :: Maybe T.Text}
   deriving (Generic, Show)
 
 parseGet :: Parser Command
 parseGet = Get <$> (T.pack <$> argument str (metavar "NAME"))
+
+parseList :: Parser Command
+parseList =
+  List <$>
+  optional
+    (T.pack <$>
+     strOption
+       (long "filter" <> short 'f' <> metavar "STRING" <>
+        help "The filter to apply to users"))
 
 parseCreate :: Parser Command
 parseCreate =
@@ -88,7 +97,10 @@ parseCommand =
     (parseCreate `Utils.withInfo` "Create a new user in the system") <>
   OptParse.command
     "update"
-    (parseUpdate `Utils.withInfo` "Update the specified user")
+    (parseUpdate `Utils.withInfo` "Update the specified user") <>
+  OptParse.command
+    "list"
+    (parseList `Utils.withInfo` "List the users in the system")
 
 setMap :: Support.UpdateMap Service.User.T
 setMap =
@@ -130,8 +142,8 @@ update action fieldName value config user =
       return $ ExitFailure 99
 
 doCommand :: Service.Config -> Command -> IO ExitCode
-doCommand config List = do
-  users <- HTTP.getResponseBody <$> Service.getUsers config
+doCommand config List {resultFilter} = do
+  users <- HTTP.getResponseBody <$> Service.getUsers config resultFilter
   Support.printBodies users
 doCommand config Update {uid, op, fieldName, value} = do
   result <- Service.getUser config uid
