@@ -137,8 +137,11 @@ toTag name values = Just (name, T.intercalate "," values)
 getUser :: Config -> T.Text -> IO (HTTP.Response User.T)
 getUser config = get config "users"
 
-getUsers :: Config -> IO (HTTP.Response [User.T])
-getUsers config = getAll config "users" []
+getUsers :: Config -> Maybe T.Text -> IO (HTTP.Response [User.T])
+getUsers config qfilter =
+  case qfilter of
+    Nothing -> getAll config "users" []
+    Just sexprFilter -> getAll config "users" [("filter", sexprFilter)]
 
 patchUser :: Config -> User.T -> User.T -> IO (HTTP.Response User.T)
 patchUser config = patch config "users" User.username
@@ -149,11 +152,19 @@ createUser config = create config "users"
 getCard :: Config -> T.Text -> IO (HTTP.Response Card.T)
 getCard config = get config "cards"
 
-getCards :: Config -> [T.Text] -> [Card.Workflow] -> IO (HTTP.Response [Card.T])
-getCards config tags workflows =
+getCards
+  :: Config
+  -> [T.Text]
+  -> [Card.Workflow]
+  -> Maybe T.Text
+  -> IO (HTTP.Response [Card.T])
+getCards config tags workflows cardFilter =
   getAll config "cards" $
   Maybe.catMaybes
-    [toTag "tags" tags, toTag "workflows" $ map Card.workflowToString workflows]
+    [ fmap (\f -> ("filter", f)) cardFilter
+    , toTag "tags" tags
+    , toTag "workflows" $ map Card.workflowToString workflows
+    ]
 
 patchCard :: Config -> Card.T -> Card.T -> IO (HTTP.Response Card.T)
 patchCard config = patch config "cards" (forceMaybe . Card.name)

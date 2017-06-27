@@ -15,7 +15,7 @@ import qualified Metadrift.Internal.Utils as Utils
 import Options.Applicative
        (Parser, (<$>), (<*>), option, auto, long, short, metavar, help,
         many, strOption, execParserPure, info, helper, fullDesc, progDesc,
-        header, defaultPrefs)
+        header, defaultPrefs, optional)
 import System.Exit (ExitCode(..))
 
 data Command = Command
@@ -23,6 +23,8 @@ data Command = Command
   , team :: [String]
   , tag :: [String]
   , workflow :: [String]
+  , teamFilter :: Maybe String
+  , cardFilter :: Maybe String
   } deriving (Generic, Show)
 
 commandParser :: Parser Command
@@ -45,14 +47,28 @@ commandParser =
     (strOption
        (long "workflow" <> short 'w' <>
         metavar "backlog|cardreview|todo|doing|done|archive" <>
-        help "the workflow to include"))
+        help "the workflow to include")) <*>
+  optional
+    (strOption
+       (long "team-filter" <> metavar "QUERY-FILTER" <>
+        help "A query filter for subsetting users")) <*>
+  optional
+    (strOption
+       (long "card-filter" <> metavar "QUERY-FILTER" <>
+        help "A query filter for subsetting cards"))
 
 listToMaybe :: [a] -> Maybe [a]
 listToMaybe [] = Nothing
 listToMaybe el = Just el
 
 doCommand :: Service.Config -> Command -> IO ExitCode
-doCommand config Command {percentile, team, tag, workflow} =
+doCommand config Command { percentile
+                         , team
+                         , tag
+                         , workflow
+                         , teamFilter
+                         , cardFilter
+                         } =
   Service.simulate
     config
     Service.Simulate.T
@@ -61,6 +77,8 @@ doCommand config Command {percentile, team, tag, workflow} =
     , Service.Simulate.teams = listToMaybe $ map T.pack team
     , Service.Simulate.workflows =
         listToMaybe $ map (Service.Card.stringToWorkflow . T.pack) workflow
+    , Service.Simulate.teamFilter = fmap T.pack teamFilter
+    , Service.Simulate.cardFilter = fmap T.pack cardFilter
     } >>=
   Support.printBody
 

@@ -44,6 +44,8 @@ data T = T
   , teams :: Maybe [T.Text]
   , tags :: Maybe [T.Text]
   , workflows :: Maybe [Card.Workflow]
+  , teamFilter :: Maybe T.Text
+  , cardFilter :: Maybe T.Text
   } deriving (Generic)
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''T)
