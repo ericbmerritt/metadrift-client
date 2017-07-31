@@ -9,9 +9,9 @@ import Data.Char (toLower)
 import qualified Data.Text as T
 import qualified Data.Yaml as Yaml
 import Options.Applicative
-       (Parser, ParserInfo, ParserResult(..), (<*>), info, helper,
-        progDesc, execCompletion, renderFailure)
-import System.Exit (exitSuccess, exitWith, ExitCode(..))
+       (Parser, ParserInfo, ParserResult(..), (<*>), execCompletion,
+        helper, info, progDesc, renderFailure)
+import System.Exit (ExitCode(..), exitSuccess, exitWith)
 import System.IO (hPutStrLn, stderr)
 
 defaultAesonOptions :: Aeson.Options
@@ -22,9 +22,7 @@ defaultAesonOptions =
   , Aeson.constructorTagModifier = map toLower
   }
 
-prettyPrint
-  :: (ToJSON a)
-  => a -> IO ()
+prettyPrint :: (ToJSON a) => a -> IO ()
 prettyPrint obj = Char8.putStrLn $ Yaml.encode obj
 
 withInfo :: Parser a -> String -> ParserInfo a

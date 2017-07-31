@@ -18,12 +18,12 @@ import qualified Metadrift.Internal.Service.Card as Service.Card
 import qualified Metadrift.Internal.Utils as Utils
 import qualified Network.HTTP.Simple as HTTP
 import Options.Applicative
-       (Parser, (<$>), (<*>), option, auto, long, short, metavar, help,
-        many, strOption, execParserPure, info, helper, fullDesc, progDesc,
-        header, argument, str, subparser, optional, defaultPrefs, flag,
-        pure)
+       (Parser, (<$>), (<*>), argument, auto, defaultPrefs,
+        execParserPure, flag, fullDesc, header, help, helper, info, long,
+        many, metavar, option, optional, progDesc, pure, short, str,
+        strOption, subparser)
 import qualified Options.Applicative as OptParse
-import Prelude hiding (min, max)
+import Prelude hiding (max, min)
 import System.Exit (ExitCode(..))
 import System.IO (FilePath)
 
@@ -31,24 +31,24 @@ data Command
   = Get T.Text
   | Load FilePath
   | Own { cardName :: T.Text
-       ,  username :: T.Text}
+        , username :: T.Text }
   | Create { title :: T.Text
-          ,  doer :: Maybe T.Text
-          ,  body :: T.Text
-          ,  workflow :: T.Text
-          ,  tags :: [T.Text]}
+           , doer :: Maybe T.Text
+           , body :: T.Text
+           , workflow :: T.Text
+           , tags :: [T.Text] }
   | Update { name :: T.Text
-          ,  op :: T.Text
-          ,  fieldName :: T.Text
-          ,  value :: T.Text}
+           , op :: T.Text
+           , fieldName :: T.Text
+           , value :: T.Text }
   | SetEstimate { name :: T.Text
-               ,  uid :: T.Text
-               ,  p5 :: Double
-               ,  p95 :: Double}
+                , uid :: T.Text
+                , p5 :: Double
+                , p95 :: Double }
   | List { fullCard :: Bool
-        ,  cardFilter :: Maybe T.Text
-        ,  tag :: [T.Text]
-        ,  wflw :: [T.Text]}
+         , cardFilter :: Maybe T.Text
+         , tag :: [T.Text]
+         , wflw :: [T.Text] }
   | Delete T.Text
   | ProjectedCompletionDates
   deriving (Generic, Show)
@@ -240,12 +240,13 @@ addMap =
 actionMap :: Map.Map T.Text (Support.UpdateMap Service.Card.T)
 actionMap = Map.fromList [("add", addMap), ("set", setMap)]
 
-update :: T.Text
-       -> T.Text
-       -> T.Text
-       -> Service.Config
-       -> Service.Card.T
-       -> IO ExitCode
+update ::
+     T.Text
+  -> T.Text
+  -> T.Text
+  -> Service.Config
+  -> Service.Card.T
+  -> IO ExitCode
 update action fieldName value config card =
   case Map.lookup action actionMap of
     Just aMap ->
@@ -284,8 +285,8 @@ makeSummary Service.Card.T { Service.Card.name
     , title
     ]
 
-replaceEstimate
-  :: [Service.Card.Estimate]
+replaceEstimate ::
+     [Service.Card.Estimate]
   -> T.Text
   -> Service.Card.Estimate
   -> [Service.Card.Estimate]

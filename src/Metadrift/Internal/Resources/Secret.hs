@@ -12,16 +12,16 @@ import qualified Metadrift.Internal.Service.Secret
        as Service.Secret
 import qualified Metadrift.Internal.Utils as Utils
 import Options.Applicative
-       (Parser, (<$>), (<*>), long, short, metavar, help, strOption,
-        execParserPure, info, helper, fullDesc, progDesc, header, optional,
-        defaultPrefs)
+       (Parser, (<$>), (<*>), defaultPrefs, execParserPure, fullDesc,
+        header, help, helper, info, long, metavar, optional, progDesc,
+        short, strOption)
 import Options.Generic (ParseRecord)
 import System.Exit (ExitCode(..))
 
 data Command
   = Create { accessKey :: T.Text
-          ,  secretKey :: Maybe T.Text
-          ,  user :: T.Text}
+           , secretKey :: Maybe T.Text
+           , user :: T.Text }
   | Delete T.Text
   deriving (Generic, Show)
 

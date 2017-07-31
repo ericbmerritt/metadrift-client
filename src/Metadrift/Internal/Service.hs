@@ -3,7 +3,7 @@
 
 module Metadrift.Internal.Service where
 
-import Data.Aeson (ToJSON, FromJSON, toJSON)
+import Data.Aeson (FromJSON, ToJSON, toJSON)
 import qualified Data.Aeson.Diff as Diff
 import qualified Data.Aeson.TH as Aeson
 import qualified Data.ByteString as B
@@ -61,9 +61,8 @@ createPath Config {namespace} (Item (resourceType, itemId)) =
   Encoding.encodeUtf8 $
   T.concat ["/", namespace, "/", resourceType, "/", itemId]
 
-createRequest'
-  :: ToJSON a
-  => Config -> B.ByteString -> a -> B.ByteString -> IO HTTP.Request
+createRequest' ::
+     ToJSON a => Config -> B.ByteString -> a -> B.ByteString -> IO HTTP.Request
 createRequest' config method obj path = do
   req <- HTTP.parseRequest $ getBaseUrl config
   authorizeRequest
@@ -86,43 +85,46 @@ createRequest config method path = do
     config
     (HTTP.setRequestMethod method (HTTP.setRequestPath path req))
 
-create
-  :: (ToJSON a, FromJSON a)
-  => Config -> T.Text -> a -> IO (HTTP.Response a)
+create ::
+     (ToJSON a, FromJSON a) => Config -> T.Text -> a -> IO (HTTP.Response a)
 create config name obj = do
   req <- createRequest' config "POST" obj $ createPath config (Col name)
   HTTP.httpJSON req
 
-get
-  :: FromJSON a
-  => Config -> T.Text -> T.Text -> IO (HTTP.Response a)
+get :: FromJSON a => Config -> T.Text -> T.Text -> IO (HTTP.Response a)
 get config name objId = do
   req <- createRequest config "GET" $ createPath config (Item (name, objId))
   HTTP.httpJSON req
 
-delete
-  :: FromJSON a
-  => Config -> T.Text -> T.Text -> IO (HTTP.Response a)
+delete :: FromJSON a => Config -> T.Text -> T.Text -> IO (HTTP.Response a)
 delete config name objId = do
   req <- createRequest config "DELETE" $ createPath config (Item (name, objId))
   HTTP.httpJSON req
 
-convertToQueryString :: [(T.Text, T.Text)]
-                     -> [(B.ByteString, Maybe B.ByteString)]
+convertToQueryString ::
+     [(T.Text, T.Text)] -> [(B.ByteString, Maybe B.ByteString)]
 convertToQueryString =
   map (\(k, v) -> (Encoding.encodeUtf8 k, Just $ Encoding.encodeUtf8 v))
 
-getAll
-  :: FromJSON a
-  => Config -> T.Text -> [(T.Text, T.Text)] -> IO (HTTP.Response [a])
+getAll ::
+     FromJSON a
+  => Config
+  -> T.Text
+  -> [(T.Text, T.Text)]
+  -> IO (HTTP.Response [a])
 getAll config name baseQS =
   let qs = convertToQueryString baseQS
   in do req <- createRequest config "GET" $ createPath config (Col name)
         HTTP.httpJSON $ HTTP.setRequestQueryString qs req
 
-patch
-  :: (ToJSON a, FromJSON a)
-  => Config -> T.Text -> (a -> T.Text) -> a -> a -> IO (HTTP.Response a)
+patch ::
+     (ToJSON a, FromJSON a)
+  => Config
+  -> T.Text
+  -> (a -> T.Text)
+  -> a
+  -> a
+  -> IO (HTTP.Response a)
 patch config name getId oldObj newObj =
   let p = Diff.diff (toJSON oldObj) (toJSON newObj)
   in do req <-
@@ -152,8 +154,8 @@ createUser config = create config "users"
 getCard :: Config -> T.Text -> IO (HTTP.Response Card.T)
 getCard config = get config "cards"
 
-getCards
-  :: Config
+getCards ::
+     Config
   -> [T.Text]
   -> [Card.Workflow]
   -> Maybe T.Text
@@ -186,8 +188,8 @@ createSecret config = create config "secrets"
 deleteSecret :: Config -> T.Text -> IO (HTTP.Response Secret.T)
 deleteSecret config = delete config "secrets"
 
-projectedCompletionDates :: Config
-                         -> IO (HTTP.Response [ProjectedCompletionDates.T])
+projectedCompletionDates ::
+     Config -> IO (HTTP.Response [ProjectedCompletionDates.T])
 projectedCompletionDates config = do
   req <-
     createEmptyRequest config "POST" $

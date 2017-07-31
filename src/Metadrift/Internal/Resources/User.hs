@@ -14,23 +14,23 @@ import qualified Metadrift.Internal.Service.User as Service.User
 import qualified Metadrift.Internal.Utils as Utils
 import qualified Network.HTTP.Simple as HTTP
 import Options.Applicative
-       (Parser, (<$>), (<*>), long, short, metavar, help, many, strOption,
-        execParserPure, info, helper, fullDesc, progDesc, header, argument,
-        str, subparser, defaultPrefs, optional)
+       (Parser, (<$>), (<*>), argument, defaultPrefs, execParserPure,
+        fullDesc, header, help, helper, info, long, many, metavar,
+        optional, progDesc, short, str, strOption, subparser)
 import qualified Options.Applicative as OptParse
 import System.Exit (ExitCode(..))
 
 data Command
   = Get T.Text
   | Create { username :: T.Text
-          ,  preferredName :: T.Text
-          ,  email :: T.Text
-          ,  teams :: [T.Text]}
+           , preferredName :: T.Text
+           , email :: T.Text
+           , teams :: [T.Text] }
   | Update { uid :: T.Text
-          ,  op :: T.Text
-          ,  fieldName :: T.Text
-          ,  value :: T.Text}
-  | List { resultFilter :: Maybe T.Text}
+           , op :: T.Text
+           , fieldName :: T.Text
+           , value :: T.Text }
+  | List { resultFilter :: Maybe T.Text }
   deriving (Generic, Show)
 
 parseGet :: Parser Command
@@ -124,12 +124,13 @@ addMap =
 actionMap :: Map.Map T.Text (Support.UpdateMap Service.User.T)
 actionMap = Map.fromList [("add", addMap), ("set", setMap)]
 
-update :: T.Text
-       -> T.Text
-       -> T.Text
-       -> Service.Config
-       -> Service.User.T
-       -> IO ExitCode
+update ::
+     T.Text
+  -> T.Text
+  -> T.Text
+  -> Service.Config
+  -> Service.User.T
+  -> IO ExitCode
 update action fieldName value config user =
   case Map.lookup action actionMap of
     Just aMap ->
