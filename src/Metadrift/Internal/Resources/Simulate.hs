@@ -13,9 +13,9 @@ import qualified Metadrift.Internal.Service.Simulate
        as Service.Simulate
 import qualified Metadrift.Internal.Utils as Utils
 import Options.Applicative
-       (Parser, (<$>), (<*>), option, auto, long, short, metavar, help,
-        many, strOption, execParserPure, info, helper, fullDesc, progDesc,
-        header, defaultPrefs, optional)
+       (Parser, (<$>), (<*>), auto, defaultPrefs, execParserPure,
+        fullDesc, header, help, helper, info, long, many, metavar, option,
+        optional, progDesc, short, strOption, switch)
 import System.Exit (ExitCode(..))
 
 data Command = Command
@@ -25,6 +25,7 @@ data Command = Command
   , workflow :: [String]
   , teamFilter :: Maybe String
   , cardFilter :: Maybe String
+  , simulateTimeOff :: Maybe Bool
   } deriving (Generic, Show)
 
 commandParser :: Parser Command
@@ -55,7 +56,9 @@ commandParser =
   optional
     (strOption
        (long "card-filter" <> metavar "QUERY-FILTER" <>
-        help "A query filter for subsetting cards"))
+        help "A query filter for subsetting cards")) <*>
+  optional
+    (switch (long "simulate-time-off" <> help "Turn on time off simulation"))
 
 listToMaybe :: [a] -> Maybe [a]
 listToMaybe [] = Nothing
@@ -68,6 +71,7 @@ doCommand config Command { percentile
                          , workflow
                          , teamFilter
                          , cardFilter
+                         , simulateTimeOff
                          } =
   Service.simulate
     config
@@ -79,6 +83,7 @@ doCommand config Command { percentile
         listToMaybe $ map (Service.Card.stringToWorkflow . T.pack) workflow
     , Service.Simulate.teamFilter = fmap T.pack teamFilter
     , Service.Simulate.cardFilter = fmap T.pack cardFilter
+    , Service.Simulate.simulateTimeOff = simulateTimeOff
     } >>=
   Support.printBody
 

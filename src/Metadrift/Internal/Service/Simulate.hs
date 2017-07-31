@@ -33,6 +33,9 @@ data Result = Result
   , workingDays :: Double
   , excluded :: [Excluded]
   , retired :: [RetiredResult]
+  , totalManDays :: Maybe Double
+  , totalNonWorkingDays :: Maybe Double
+  , totalPto :: Maybe Double
   } deriving (Generic)
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''Result)
@@ -46,6 +49,7 @@ data T = T
   , workflows :: Maybe [Card.Workflow]
   , teamFilter :: Maybe T.Text
   , cardFilter :: Maybe T.Text
+  , simulateTimeOff :: Maybe Bool
   } deriving (Generic)
 
 $(Aeson.deriveJSON Utils.defaultAesonOptions ''T)
